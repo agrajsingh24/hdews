@@ -1,0 +1,12 @@
+# NOTE: written but not run in the development environment (no Docker daemon available there).
+# Build the frontend first: ./scripts/build_frontend.sh
+services:
+  hdews:
+    build: .
+    ports: ["8000:8000"]
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite:////data/hdews.db
+    volumes: ["hdews-data:/data"]
+volumes:
+  hdews-data:

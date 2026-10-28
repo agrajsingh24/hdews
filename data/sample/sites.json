@@ -1,0 +1,63 @@
+{
+  "_comment": "Pilot study area: Rudraprayag district, Uttarakhand. Coordinates are approximate locality coordinates (about ±1 km) used only to place SIMULATED monitoring points. No physical sensors exist at these locations as part of this prototype. Thresholds in 'config' are uncalibrated demonstration settings.",
+  "pilot_area": {
+    "name": "Rudraprayag district — Mandakini & Alaknanda valleys (pilot study area)",
+    "state": "Uttarakhand",
+    "bbox": [78.90, 30.20, 79.16, 30.78],
+    "boundary_note": "Rectangular study-area box chosen for the prototype. It is NOT the administrative district boundary."
+  },
+  "sites": [
+    {
+      "id": "RDP-01", "name": "Rudraprayag Confluence", "latitude": 30.2847, "longitude": 78.9811, "elevation_m": 895,
+      "hazards": ["flash_flood", "landslide"],
+      "description": "Confluence of the Alaknanda and Mandakini rivers at Rudraprayag town.",
+      "sensors": ["rain_gauge", "soil_moisture", "river_stage"],
+      "config": {"flash_flood": {"river_warning_level_m": 3.5, "river_danger_level_m": 4.5}}
+    },
+    {
+      "id": "TLW-02", "name": "Tilwara (Mandakini)", "latitude": 30.3375, "longitude": 79.0030, "elevation_m": 960,
+      "hazards": ["flash_flood"],
+      "description": "Mandakini valley reach near Tilwara.",
+      "sensors": ["rain_gauge", "river_stage"],
+      "config": {"flash_flood": {"river_warning_level_m": 2.8, "river_danger_level_m": 3.8}}
+    },
+    {
+      "id": "AGM-03", "name": "Agastmuni", "latitude": 30.3937, "longitude": 79.0262, "elevation_m": 1000,
+      "hazards": ["flash_flood", "landslide"],
+      "description": "Mandakini valley settlement and riverside slope near Agastmuni.",
+      "sensors": ["rain_gauge", "soil_moisture", "extensometer", "river_stage"],
+      "config": {}
+    },
+    {
+      "id": "GPK-04", "name": "Guptkashi Slope", "latitude": 30.5245, "longitude": 79.0796, "elevation_m": 1320,
+      "hazards": ["landslide"],
+      "description": "Hill-slope road section near Guptkashi.",
+      "sensors": ["rain_gauge", "soil_moisture", "extensometer"],
+      "config": {"landslide": {"soil_moisture_baseline_pct": 30}}
+    },
+    {
+      "id": "SNP-05", "name": "Sonprayag–Gaurikund Corridor", "latitude": 30.6330, "longitude": 78.9985, "elevation_m": 1830,
+      "hazards": ["landslide", "flash_flood"],
+      "description": "Valley corridor between Sonprayag and Gaurikund on the Kedarnath route.",
+      "sensors": ["rain_gauge", "soil_moisture", "extensometer", "river_stage"],
+      "config": {"flash_flood": {"river_warning_level_m": 2.5, "river_danger_level_m": 3.5}}
+    },
+    {
+      "id": "UKM-06", "name": "Ukhimath Slope", "latitude": 30.5155, "longitude": 79.0920, "elevation_m": 1310,
+      "hazards": ["landslide"],
+      "description": "Slope section near Ukhimath.",
+      "sensors": ["rain_gauge", "soil_moisture", "extensometer"],
+      "config": {"landslide": {"soil_moisture_baseline_pct": 26}}
+    }
+  ],
+  "context_lines": {
+    "_comment": "Schematic river centrelines through approximate locality points, for orientation only. Not survey-grade geometry.",
+    "Mandakini (schematic)": [[79.0669, 30.7346], [78.9850, 30.6526], [78.9985, 30.6330], [79.0420, 30.5600], [79.0262, 30.3937], [79.0030, 30.3375], [78.9811, 30.2847]],
+    "Alaknanda (schematic)": [[79.2170, 30.2626], [79.1000, 30.2800], [78.9811, 30.2847], [78.8800, 30.2400], [78.7836, 30.2229]]
+  },
+  "places": [
+    {"name": "Kedarnath", "latitude": 30.7346, "longitude": 79.0669},
+    {"name": "Gaurikund", "latitude": 30.6526, "longitude": 78.9850},
+    {"name": "Karnaprayag", "latitude": 30.2626, "longitude": 79.2170}
+  ]
+}
