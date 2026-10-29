@@ -84,9 +84,12 @@ async function refreshBadge(): Promise<void> {
   } catch { /* ignore */ }
 }
 
-function shell(): void {
+async function shell(): Promise<void> {
   const s = getSession()!;
-  const nav = h("nav", { class: "sidenav", id: "sidenav", "aria-label": "Main" }, NAV.map(([k, href, label]) => navLink(k, href, label)));
+  try { meta = meta || await api("/api/meta"); } catch { /* nav falls back to showing every page */ }
+  // The simulator is unavailable when demo endpoints are disabled (production); don't offer it.
+  const items = NAV.filter(([k]) => k !== "simulator" || !meta || meta.demo_endpoints);
+  const nav = h("nav", { class: "sidenav", id: "sidenav", "aria-label": "Main" }, items.map(([k, href, label]) => navLink(k, href, label)));
   const menuBtn = h("button", { class: "btn btn-icon menu-btn", type: "button", "aria-controls": "sidenav", "aria-expanded": "false", "aria-label": "Menu",
     onclick: () => { const open = document.body.classList.toggle("nav-open"); menuBtn.setAttribute("aria-expanded", String(open)); } }, "☰");
   app.replaceChildren(
@@ -97,9 +100,13 @@ function shell(): void {
         nav,
         h("div", { class: "rail-user" },
           h("div", null, h("strong", null, s.user.display_name), h("div", { class: "small" }, `Role: ${s.user.role}`)),
-          h("button", { class: "btn btn-small btn-ghost", type: "button", onclick: async () => {
-            try { await api("/api/auth/logout", { method: "POST" }); } catch { /* ignore */ }
-            setSession(null); location.hash = "#/"; loginView();
+          h("button", { class: "btn btn-small btn-ghost", type: "button", onclick: () => {
+            // Clear the local session first (HDEWS-027): if the page is closed or reloaded while the
+            // logout request is in flight, it must not come back holding a token the server revoked.
+            const t = getSession()?.token;
+            setSession(null);
+            if (t) fetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${t}` }, keepalive: true }).catch(() => {});
+            location.hash = "#/"; loginView();
           } }, "Sign out"))),
       h("main", { id: "main", class: "main", tabindex: "-1" })),
     h("div", { id: "toasts", class: "toasts", "aria-live": "polite" }));
@@ -141,4 +148,5 @@ async function route(): Promise<void> {
 
 setUnauthenticatedHandler(() => { toast("Your session ended. Sign in again.", "error"); loginView(); });
 window.addEventListener("hashchange", route);
+window.addEventListener("hdews:mutated", () => { if (getSession()) refreshBadge(); });
 if (getSession()) shell(); else loginView();

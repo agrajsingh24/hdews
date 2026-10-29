@@ -1,0 +1,51 @@
+# Reproduction output — baseline commit 5758680 (original code)
+# Generated 2026-10-28 by scratch reproduction scripts (B-numbers map to HDEWS IDs in BUG_AUDIT_REPORT.md:
+# B1=001 B2=002 B3=003 B4=004 B5=005 B6=006 B8=008 B9=009 B10=010 B11=011 B12=012 B13=013 B15=015 B16=016 B18=018)
+
+B1 ingest inf -> 202
+B1 overview -> 500  observations -> 500
+B2 unit=ft accepted? -> 202 1
+B3 rain_1h before=16.5 after re-sending identical readings as OBSERVED=33.1
+B4 3.9 MB body -> 422
+B5 typo param -> 200
+B6 {'landslide': {'rain_24h_mm': {'watch': True, 'high': 2}}} -> 200
+B6 {'landslide': {'rain_24hr_mm': {'watch': 1, 'high': 2}}} -> 200
+B6 inf -> 500
+B8 soil indicator status=available value=45.0 as_of=2026-07-15T07:00:00Z (5h old) sensor state=FRESH
+B9 displacement high: HIGH GOOD -> extensometer offline 7h: LOW DEGRADED
+B10 NaN soil -> level normal status available tier LOW GOOD
+B11 tier HIGH lower_bound False max HIGH
+B12 production seed rc= 0 |   FIELD-GATEWAY-01 ingestion key (shown once): we5nywfIxwblJlaJUCv1FBM0hJfliwNu
+B13 'precious' table still exists after reset_db: False
+B15 unhandled provider error -> AttributeError
+B16 contradictory tier accepted: True (actual tier ELEVATED)
+B16b 4000-char output accepted: True
+B18 after deleting the newest audit event: {'valid': True, 'events_checked': 15, 'broken_at_seq': None} (was 16 events)
+
+# B11 (lower-bound) direct engine check, and B13 (reset_db) rerun from a clean file:
+baseline -> tier ELEVATED max_possible ELEVATED tier_is_lower_bound True | summary says understate: True
+B13 baseline: unrelated table "precious" still exists after reset_db: False
+
+# ---------------------------------------------------------------
+# Same scripts on the FIXED code:
+B1 ingest inf -> 400
+B1 overview -> 200  observations -> 200
+B2 unit=ft accepted? -> 200 0
+B3 rain_1h before=16.5 after re-sending identical readings as OBSERVED=16.5
+B4 3.9 MB body -> 413
+B5 typo param -> 422
+B6 {'landslide': {'rain_24h_mm': {'watch': True, 'high': 2}}} -> 422
+B6 {'landslide': {'rain_24hr_mm': {'watch': 1, 'high': 2}}} -> 422
+B6 inf -> 400
+B8 soil indicator status=stale value=45.0 as_of=2026-07-15T07:00:00Z (5h old) sensor state=FRESH
+B9 displacement high: HIGH GOOD -> extensometer offline 7h: INSUFFICIENT_DATA POOR
+B10 NaN soil -> level unknown status missing tier INSUFFICIENT_DATA POOR
+B11 tier HIGH lower_bound False max HIGH
+B12 production seed rc= 1 | 
+B15 handled
+B16 contradictory tier accepted: False (actual tier ELEVATED)
+B16b 4000-char output accepted: False
+B18 after deleting the newest audit event: {'valid': False, 'events_checked': 15, 'broken_at_seq': 16, 'reason': 'events after #15 are missing (high-water mark #16)', 'head_hash': None} (was 16 events)
+fixed -> tier ELEVATED max_possible ELEVATED tier_is_lower_bound False | summary says understate: False
+B13 fixed: unrelated table "precious" still exists after reset_db: True
+B12 baseline (explicit): HDEWS_ENV=production seed created admin; password "hdews-demo" verifies: True

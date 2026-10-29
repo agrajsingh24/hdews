@@ -11,7 +11,7 @@ from .. import clock
 from ..services import assessments as assessment_service
 from ..services import audit, data_sources, ingestion, simulator
 from ..services.risk_engine import merge_config
-from .common import ApiError, body_as, client_key, db, ok, page, paging, require, settings
+from .common import ApiError, validation_details, body_as, client_key, db, ok, page, paging, require, settings
 
 @require("read")
 async def list_incidents(request: Request, user: dict):
@@ -29,14 +29,20 @@ async def list_incidents(request: Request, user: dict):
         where.append("event_date <= ?")
         params.append(q["to"])
     if q.get("q"):
-        where.append("(LOWER(title) LIKE ? OR LOWER(location_name) LIKE ? OR LOWER(description) LIKE ?)")
-        term = f"%{q['q'].lower()[:80]}%"
+        where.append("(LOWER(title) LIKE ? ESCAPE '\\' OR LOWER(location_name) LIKE ? ESCAPE '\\' "
+                     "OR LOWER(description) LIKE ? ESCAPE '\\')")
+        term = "%" + like_escape(q["q"].lower()[:80]) + "%"
         params += [term, term, term]
     clause = ("WHERE " + " AND ".join(where)) if where else ""
     with db(request).tx() as tx:
         total = tx.scalar(f"SELECT COUNT(*) FROM incidents {clause}", params)
         rows = tx.all(f"SELECT * FROM incidents {clause} ORDER BY event_date DESC LIMIT ? OFFSET ?", params + [limit, offset])
     return ok(page(rows, total, limit, offset))
+
+
+def like_escape(text: str) -> str:
+    """Treat user search text literally: % and _ are not wildcards (HDEWS-020)."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _km(lat1, lon1, lat2, lon2) -> float:
@@ -83,8 +89,8 @@ async def audit_log(request: Request, user: dict):
             params.append(v)
     prefix = request.query_params.get("event_prefix")
     if prefix:
-        where.append("event_type LIKE ?")
-        params.append(prefix.replace("%", "") + "%")
+        where.append("event_type LIKE ? ESCAPE '\\'")
+        params.append(like_escape(prefix[:80]) + "%")
     clause = ("WHERE " + " AND ".join(where)) if where else ""
     with db(request).tx() as tx:
         total = tx.scalar(f"SELECT COUNT(*) FROM audit_log {clause}", params)
@@ -165,6 +171,7 @@ async def apply_scenario(request: Request, user: dict):
     body = await body_as(request, ScenarioIn)
     if not body.preset and not body.overrides:
         raise ApiError(422, "validation_error", "Provide a preset, overrides, or both.")
+    body.site_ids = list(dict.fromkeys(body.site_ids))  # duplicates would apply the scenario twice
     if body.preset and body.preset not in simulator.PRESETS:
         raise ApiError(422, "validation_error", f"Unknown preset '{body.preset}'.")
     try:
@@ -176,8 +183,7 @@ async def apply_scenario(request: Request, user: dict):
     except LookupError as exc:
         raise ApiError(404, "not_found", f"Site '{exc.args[0]}' not found.")
     except ValidationError as exc:
-        details = [{"field": ".".join(str(p) for p in e["loc"]), "message": e["msg"]} for e in exc.errors()]
-        raise ApiError(422, "validation_error", "Scenario parameters are invalid.", details)
+        raise ApiError(422, "validation_error", "Scenario parameters are invalid.", validation_details(exc))
     return ok({**result, "assessments": [
         {k: a[k] for k in ("id", "site_id", "hazard", "risk_tier", "reliability", "score", "summary", "data_origin")}
         for a in assessed]})

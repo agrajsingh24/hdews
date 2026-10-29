@@ -1,0 +1,748 @@
+{
+ "pytest_exit_code": 0,
+ "files": {
+  "backend/app/__init__.py": {
+   "lines": 0,
+   "lines_hit": 0,
+   "line_pct": 100.0,
+   "branches": 0,
+   "branches_hit": 0,
+   "branch_pct": 100.0,
+   "missing_lines": [],
+   "partial_branch_lines": [],
+   "excluded_lines": 0
+  },
+  "backend/app/api/__init__.py": {
+   "lines": 0,
+   "lines_hit": 0,
+   "line_pct": 100.0,
+   "branches": 0,
+   "branches_hit": 0,
+   "branch_pct": 100.0,
+   "missing_lines": [],
+   "partial_branch_lines": [],
+   "excluded_lines": 0
+  },
+  "backend/app/api/common.py": {
+   "lines": 125,
+   "lines_hit": 123,
+   "line_pct": 98.4,
+   "branches": 72,
+   "branches_hit": 58,
+   "branch_pct": 80.6,
+   "missing_lines": [
+    103,
+    179
+   ],
+   "partial_branch_lines": [
+    70,
+    97,
+    102,
+    112,
+    115,
+    121,
+    134,
+    156,
+    157,
+    173,
+    177,
+    178
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/api/routes_alerts.py": {
+   "lines": 97,
+   "lines_hit": 97,
+   "line_pct": 100.0,
+   "branches": 26,
+   "branches_hit": 19,
+   "branch_pct": 73.1,
+   "missing_lines": [],
+   "partial_branch_lines": [
+    34,
+    46,
+    49,
+    58,
+    100,
+    105
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/api/routes_core.py": {
+   "lines": 202,
+   "lines_hit": 199,
+   "line_pct": 98.5,
+   "branches": 120,
+   "branches_hit": 97,
+   "branch_pct": 80.8,
+   "missing_lines": [
+    121,
+    155,
+    187
+   ],
+   "partial_branch_lines": [
+    25,
+    46,
+    59,
+    73,
+    74,
+    91,
+    101,
+    107,
+    110,
+    120,
+    124,
+    125,
+    154,
+    158,
+    169,
+    170,
+    171,
+    186,
+    194,
+    201
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/api/routes_misc.py": {
+   "lines": 160,
+   "lines_hit": 154,
+   "line_pct": 96.2,
+   "branches": 90,
+   "branches_hit": 66,
+   "branch_pct": 73.3,
+   "missing_lines": [
+    26,
+    27,
+    29,
+    30,
+    114,
+    115
+   ],
+   "partial_branch_lines": [
+    25,
+    28,
+    37,
+    56,
+    63,
+    70,
+    77,
+    95,
+    105,
+    111,
+    113,
+    117,
+    118,
+    146,
+    178,
+    185,
+    198,
+    203
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/api/routes_sites.py": {
+   "lines": 151,
+   "lines_hit": 147,
+   "line_pct": 97.4,
+   "branches": 78,
+   "branches_hit": 57,
+   "branch_pct": 73.1,
+   "missing_lines": [
+    74,
+    75,
+    158,
+    176
+   ],
+   "partial_branch_lines": [
+    26,
+    37,
+    39,
+    48,
+    55,
+    74,
+    76,
+    79,
+    97,
+    114,
+    135,
+    145,
+    152,
+    157,
+    164,
+    175
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/clock.py": {
+   "lines": 22,
+   "lines_hit": 22,
+   "line_pct": 100.0,
+   "branches": 10,
+   "branches_hit": 9,
+   "branch_pct": 90.0,
+   "missing_lines": [],
+   "partial_branch_lines": [
+    39
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/config.py": {
+   "lines": 77,
+   "lines_hit": 65,
+   "line_pct": 84.4,
+   "branches": 30,
+   "branches_hit": 15,
+   "branch_pct": 50.0,
+   "missing_lines": [
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    32,
+    87
+   ],
+   "partial_branch_lines": [
+    16,
+    18,
+    20,
+    30,
+    80,
+    86,
+    100,
+    105
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/db.py": {
+   "lines": 139,
+   "lines_hit": 128,
+   "line_pct": 92.1,
+   "branches": 84,
+   "branches_hit": 61,
+   "branch_pct": 72.6,
+   "missing_lines": [
+    37,
+    38,
+    141,
+    148,
+    149,
+    154,
+    155,
+    156,
+    163,
+    188,
+    194
+   ],
+   "partial_branch_lines": [
+    36,
+    62,
+    63,
+    69,
+    93,
+    102,
+    118,
+    124,
+    140,
+    142,
+    147,
+    149,
+    155,
+    156,
+    162,
+    187,
+    193
+   ],
+   "excluded_lines": 11
+  },
+  "backend/app/main.py": {
+   "lines": 141,
+   "lines_hit": 129,
+   "line_pct": 91.5,
+   "branches": 46,
+   "branches_hit": 26,
+   "branch_pct": 56.5,
+   "missing_lines": [
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    118,
+    176,
+    177
+   ],
+   "partial_branch_lines": [
+    64,
+    65,
+    66,
+    78,
+    79,
+    81,
+    82,
+    88,
+    97,
+    106,
+    112,
+    117,
+    157
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/security.py": {
+   "lines": 63,
+   "lines_hit": 63,
+   "line_pct": 100.0,
+   "branches": 24,
+   "branches_hit": 22,
+   "branch_pct": 91.7,
+   "missing_lines": [],
+   "partial_branch_lines": [
+    46,
+    49
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/seed.py": {
+   "lines": 127,
+   "lines_hit": 124,
+   "line_pct": 97.6,
+   "branches": 58,
+   "branches_hit": 46,
+   "branch_pct": 79.3,
+   "missing_lines": [
+    167,
+    168,
+    169
+   ],
+   "partial_branch_lines": [
+    108,
+    112,
+    116,
+    120,
+    152,
+    161,
+    163,
+    168
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/__init__.py": {
+   "lines": 0,
+   "lines_hit": 0,
+   "line_pct": 100.0,
+   "branches": 0,
+   "branches_hit": 0,
+   "branch_pct": 100.0,
+   "missing_lines": [],
+   "partial_branch_lines": [],
+   "excluded_lines": 0
+  },
+  "backend/app/services/alerts.py": {
+   "lines": 121,
+   "lines_hit": 119,
+   "line_pct": 98.3,
+   "branches": 66,
+   "branches_hit": 60,
+   "branch_pct": 90.9,
+   "missing_lines": [
+    67,
+    68
+   ],
+   "partial_branch_lines": [
+    44,
+    45,
+    46,
+    48,
+    66
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/assessments.py": {
+   "lines": 88,
+   "lines_hit": 81,
+   "line_pct": 92.0,
+   "branches": 38,
+   "branches_hit": 31,
+   "branch_pct": 81.6,
+   "missing_lines": [
+    42,
+    43,
+    45,
+    46,
+    47,
+    55,
+    71
+   ],
+   "partial_branch_lines": [
+    28,
+    41,
+    46,
+    54,
+    70,
+    79
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/audit.py": {
+   "lines": 52,
+   "lines_hit": 52,
+   "line_pct": 100.0,
+   "branches": 28,
+   "branches_hit": 25,
+   "branch_pct": 89.3,
+   "missing_lines": [],
+   "partial_branch_lines": [
+    64,
+    69,
+    70
+   ],
+   "excluded_lines": 2
+  },
+  "backend/app/services/data_sources.py": {
+   "lines": 33,
+   "lines_hit": 29,
+   "line_pct": 87.9,
+   "branches": 18,
+   "branches_hit": 13,
+   "branch_pct": 72.2,
+   "missing_lines": [
+    32,
+    36,
+    37,
+    38
+   ],
+   "partial_branch_lines": [
+    25,
+    31,
+    34,
+    36
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/explanations.py": {
+   "lines": 83,
+   "lines_hit": 80,
+   "line_pct": 96.4,
+   "branches": 54,
+   "branches_hit": 45,
+   "branch_pct": 83.3,
+   "missing_lines": [
+    51,
+    74,
+    75
+   ],
+   "partial_branch_lines": [
+    47,
+    50,
+    52,
+    74,
+    98,
+    108,
+    128
+   ],
+   "excluded_lines": 16
+  },
+  "backend/app/services/ingestion.py": {
+   "lines": 95,
+   "lines_hit": 95,
+   "line_pct": 100.0,
+   "branches": 44,
+   "branches_hit": 43,
+   "branch_pct": 97.7,
+   "missing_lines": [],
+   "partial_branch_lines": [
+    72
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/risk_engine/__init__.py": {
+   "lines": 4,
+   "lines_hit": 4,
+   "line_pct": 100.0,
+   "branches": 0,
+   "branches_hit": 0,
+   "branch_pct": 100.0,
+   "missing_lines": [],
+   "partial_branch_lines": [],
+   "excluded_lines": 0
+  },
+  "backend/app/services/risk_engine/config.py": {
+   "lines": 79,
+   "lines_hit": 79,
+   "line_pct": 100.0,
+   "branches": 56,
+   "branches_hit": 53,
+   "branch_pct": 94.6,
+   "missing_lines": [],
+   "partial_branch_lines": [
+    63,
+    97,
+    112
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/risk_engine/engine.py": {
+   "lines": 149,
+   "lines_hit": 149,
+   "line_pct": 100.0,
+   "branches": 144,
+   "branches_hit": 142,
+   "branch_pct": 98.6,
+   "missing_lines": [],
+   "partial_branch_lines": [
+    96,
+    102
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/risk_engine/features.py": {
+   "lines": 246,
+   "lines_hit": 245,
+   "line_pct": 99.6,
+   "branches": 138,
+   "branches_hit": 129,
+   "branch_pct": 93.5,
+   "missing_lines": [
+    271
+   ],
+   "partial_branch_lines": [
+    29,
+    50,
+    182,
+    195,
+    225,
+    270,
+    282,
+    302
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/risk_engine/playbook.py": {
+   "lines": 19,
+   "lines_hit": 19,
+   "line_pct": 100.0,
+   "branches": 6,
+   "branches_hit": 6,
+   "branch_pct": 100.0,
+   "missing_lines": [],
+   "partial_branch_lines": [],
+   "excluded_lines": 0
+  },
+  "backend/app/services/risk_engine/rules.py": {
+   "lines": 96,
+   "lines_hit": 96,
+   "line_pct": 100.0,
+   "branches": 18,
+   "branches_hit": 16,
+   "branch_pct": 88.9,
+   "missing_lines": [],
+   "partial_branch_lines": [
+    110,
+    115
+   ],
+   "excluded_lines": 0
+  },
+  "backend/app/services/simulator.py": {
+   "lines": 199,
+   "lines_hit": 196,
+   "line_pct": 98.5,
+   "branches": 106,
+   "branches_hit": 95,
+   "branch_pct": 89.6,
+   "missing_lines": [
+    101,
+    124,
+    148
+   ],
+   "partial_branch_lines": [
+    100,
+    105,
+    123,
+    137,
+    138,
+    174,
+    211,
+    234,
+    238,
+    242
+   ],
+   "excluded_lines": 0
+  },
+  "ml/__init__.py": {
+   "lines": 0,
+   "lines_hit": 0,
+   "line_pct": 100.0,
+   "branches": 0,
+   "branches_hit": 0,
+   "branch_pct": 100.0,
+   "missing_lines": [],
+   "partial_branch_lines": [],
+   "excluded_lines": 0
+  },
+  "ml/evaluate.py": {
+   "lines": 167,
+   "lines_hit": 159,
+   "line_pct": 95.2,
+   "branches": 94,
+   "branches_hit": 66,
+   "branch_pct": 70.2,
+   "missing_lines": [
+    56,
+    57,
+    64,
+    112,
+    211,
+    212,
+    213,
+    219
+   ],
+   "partial_branch_lines": [
+    54,
+    56,
+    63,
+    69,
+    71,
+    73,
+    81,
+    84,
+    104,
+    111,
+    118,
+    127,
+    129,
+    135,
+    136,
+    137,
+    162,
+    174,
+    201,
+    204,
+    205,
+    209,
+    210,
+    218
+   ],
+   "excluded_lines": 0
+  }
+ },
+ "groups": {
+  "Risk engine (pure logic)": {
+   "files": [
+    "backend/app/services/risk_engine/__init__.py",
+    "backend/app/services/risk_engine/config.py",
+    "backend/app/services/risk_engine/engine.py",
+    "backend/app/services/risk_engine/features.py",
+    "backend/app/services/risk_engine/playbook.py",
+    "backend/app/services/risk_engine/rules.py"
+   ],
+   "line_pct": 99.8,
+   "branch_pct": 95.6,
+   "lines": 593,
+   "branches": 362
+  },
+  "Data freshness & features": {
+   "files": [
+    "backend/app/services/risk_engine/features.py"
+   ],
+   "line_pct": 99.6,
+   "branch_pct": 93.5,
+   "lines": 246,
+   "branches": 138
+  },
+  "Authentication & RBAC": {
+   "files": [
+    "backend/app/api/common.py",
+    "backend/app/security.py"
+   ],
+   "line_pct": 98.9,
+   "branch_pct": 83.3,
+   "lines": 188,
+   "branches": 96
+  },
+  "Sensor ingestion": {
+   "files": [
+    "backend/app/services/ingestion.py"
+   ],
+   "line_pct": 100.0,
+   "branch_pct": 97.7,
+   "lines": 95,
+   "branches": 44
+  },
+  "Alert lifecycle (state transitions)": {
+   "files": [
+    "backend/app/services/alerts.py"
+   ],
+   "line_pct": 98.3,
+   "branch_pct": 90.9,
+   "lines": 121,
+   "branches": 66
+  },
+  "Audit chain": {
+   "files": [
+    "backend/app/services/audit.py"
+   ],
+   "line_pct": 100.0,
+   "branch_pct": 89.3,
+   "lines": 52,
+   "branches": 28
+  },
+  "Simulator": {
+   "files": [
+    "backend/app/services/simulator.py"
+   ],
+   "line_pct": 98.5,
+   "branch_pct": 89.6,
+   "lines": 199,
+   "branches": 106
+  },
+  "Explanations (LLM guard)": {
+   "files": [
+    "backend/app/services/explanations.py"
+   ],
+   "line_pct": 96.4,
+   "branch_pct": 83.3,
+   "lines": 83,
+   "branches": 54
+  },
+  "API endpoints": {
+   "files": [
+    "backend/app/api/__init__.py",
+    "backend/app/api/common.py",
+    "backend/app/api/routes_alerts.py",
+    "backend/app/api/routes_core.py",
+    "backend/app/api/routes_misc.py",
+    "backend/app/api/routes_sites.py"
+   ],
+   "line_pct": 98.0,
+   "branch_pct": 76.9,
+   "lines": 735,
+   "branches": 386
+  },
+  "ML evaluation harness": {
+   "files": [
+    "ml/evaluate.py"
+   ],
+   "line_pct": 95.2,
+   "branch_pct": 70.2,
+   "lines": 167,
+   "branches": 94
+  }
+ },
+ "total": {
+  "line_pct": 97.0,
+  "branch_pct": 82.9,
+  "lines": 2735,
+  "branches": 1448
+ }
+}

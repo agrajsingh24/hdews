@@ -7,6 +7,7 @@ demonstration rules — they are NOT probabilities.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -42,6 +43,7 @@ class Factor:
     evidence_ids: list[int] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     origins: list[str] = field(default_factory=list)
+    critical_reason: str | None = None
 
     def as_dict(self) -> dict:
         return self.__dict__.copy()
@@ -104,11 +106,15 @@ def evaluate_factor(rule: IndicatorRule, indicator: Indicator | None, cfg: dict)
     threshold = rule.threshold_label(cfg)
     if indicator is None:
         return Factor(rule.key, label, unit, None, None, "missing", "unknown", 0, rule.high_points, rule.critical,
-                      threshold, None, notes=["No sensor configured for this indicator at this site."])
+                      threshold, None, notes=["No sensor configured for this indicator at this site."],
+                      critical_reason="documented critical input" if rule.critical else None)
     factor = Factor(rule.key, label, unit, indicator.value, None, indicator.status, "unknown", 0, rule.high_points,
                     rule.critical, threshold, indicator.as_of, list(indicator.evidence_ids), list(indicator.notes),
-                    sorted(indicator.origins))
-    if not indicator.usable:
+                    sorted(indicator.origins), "documented critical input" if rule.critical else None)
+    if not indicator.usable or not math.isfinite(indicator.value):
+        if indicator.value is not None and not math.isfinite(indicator.value):
+            factor.status, factor.value = "missing", None
+            factor.notes.append("Non-finite value ignored.")
         return factor
     compared = rule.transform(indicator.value, cfg)
     factor.compared_value = round(compared, 2)

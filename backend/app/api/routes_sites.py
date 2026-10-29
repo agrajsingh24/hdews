@@ -165,4 +165,14 @@ async def explain_assessment(request: Request, user: dict):
         row = tx.one("SELECT * FROM assessments WHERE id = ?", (request.path_params["assessment_id"],))
     if not row:
         raise ApiError(404, "not_found", "Assessment not found.")
-    return ok(explanations.explain(assessment_service.hydrate(row), settings(request)))
+    # Assessments are immutable, so an explanation can be cached: repeated page views must not
+    # trigger repeated (paid, rate-limited) LLM calls.
+    cache: dict = request.app.state.explanation_cache
+    if row["id"] in cache:
+        return ok(cache[row["id"]])
+    result = explanations.explain(assessment_service.hydrate(row), settings(request))
+    if result["method"] == "llm" or settings(request).llm_provider == "none":
+        if len(cache) >= 512:
+            cache.pop(next(iter(cache)))
+        cache[row["id"]] = result
+    return ok(result)

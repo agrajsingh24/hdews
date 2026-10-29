@@ -1,0 +1,17 @@
+# Keep secrets, local databases and bulky docs/test artefacts out of the build context.
+.git
+.github
+.env
+.env.*
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+docs
+e2e
+ml
+backend/tests
+frontend/src
+*.zip

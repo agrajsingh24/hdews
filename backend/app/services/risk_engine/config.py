@@ -8,6 +8,7 @@ should be used as operational guidance. Site-specific overrides are stored in
 from __future__ import annotations
 
 import copy
+import math
 from typing import Any
 
 RULE_VERSION = "baseline-rules-v0.1-demo"
@@ -65,26 +66,52 @@ def _deep_merge(base: dict, override: dict) -> None:
             base[key] = value
 
 
+def _is_number(x) -> bool:
+    # bool is a subclass of int in Python; it is not a valid threshold (bug HDEWS-006).
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+
+
 def validate_site_overrides(overrides: dict) -> list[str]:
-    """Return a list of validation errors for admin-edited site thresholds."""
+    """Return a list of validation errors for admin-edited site thresholds.
+
+    Only the hazard sections may be overridden, only keys that exist in the defaults are
+    accepted (a misspelt key would otherwise be silently ignored), and every value must be a
+    finite, non-negative number with watch < high.
+    """
     errors: list[str] = []
+    if not isinstance(overrides, dict):
+        return ["overrides must be a JSON object"]
     allowed = {"landslide", "flash_flood"}
-    for section in overrides:
+    for section, body in overrides.items():
         if section not in allowed:
             errors.append(f"unknown section '{section}' (allowed: {sorted(allowed)})")
+            continue
+        if not isinstance(body, dict):
+            errors.append(f"{section}: must be an object")
+            continue
+        for key, value in body.items():
+            default = DEFAULT_CONFIG[section].get(key)
+            if default is None:
+                errors.append(f"{section}.{key}: unknown setting (allowed: {sorted(DEFAULT_CONFIG[section])})")
+            elif isinstance(default, dict):
+                if not isinstance(value, dict) or set(value) - {"watch", "high"}:
+                    errors.append(f"{section}.{key}: must be an object with only 'watch' and 'high'")
+            elif not _is_number(value):
+                errors.append(f"{section}.{key}: must be a finite number")
+    if errors:
+        return errors
     merged = merge_config(overrides)
     for hazard in ("landslide", "flash_flood"):
         for key, value in merged[hazard].items():
             if isinstance(value, dict):
                 w, h = value.get("watch"), value.get("high")
-                if not all(isinstance(x, (int, float)) and x >= 0 for x in (w, h)):
-                    errors.append(f"{hazard}.{key}: watch/high must be non-negative numbers")
+                if not all(_is_number(x) and x >= 0 for x in (w, h)):
+                    errors.append(f"{hazard}.{key}: watch/high must be finite, non-negative numbers")
                 elif w >= h:
                     errors.append(f"{hazard}.{key}: watch ({w}) must be lower than high ({h})")
-            elif not isinstance(value, (int, float)) or value < 0:
-                errors.append(f"{hazard}.{key}: must be a non-negative number")
+            elif not _is_number(value) or value < 0:
+                errors.append(f"{hazard}.{key}: must be a finite, non-negative number")
     ff = merged["flash_flood"]
-    if isinstance(ff["river_warning_level_m"], (int, float)) and isinstance(ff["river_danger_level_m"], (int, float)):
-        if ff["river_warning_level_m"] >= ff["river_danger_level_m"]:
-            errors.append("flash_flood: river_warning_level_m must be lower than river_danger_level_m")
+    if not errors and ff["river_warning_level_m"] >= ff["river_danger_level_m"]:
+        errors.append("flash_flood: river_warning_level_m must be lower than river_danger_level_m")
     return errors

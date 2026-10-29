@@ -1,0 +1,523 @@
+{
+ "scenarios": 8,
+ "scenarios_passed": 8,
+ "checks": 93,
+ "checks_failed": 0,
+ "seconds": 26.7,
+ "results": [
+  {
+   "scenario": "A: normal operation",
+   "ok": true,
+   "checks": [
+    {
+     "name": "overview shows data mode Simulated",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "site matrix lists 6 sites",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "prototype strip visible",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "times rendered in IST regardless of browser timezone",
+     "ok": true,
+     "detail": "2026-10-29T11:54:16Z -> 29 Oct, 17:24 IST"
+    },
+    {
+     "name": "map renders 6 site markers",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "keyboard Enter on marker opens site drawer",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "drawer closes",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "zoom control works",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "site shows 4 sensor cards",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "sensor units shown",
+     "ok": true,
+     "detail": " mm, mm, m, % VWC"
+    },
+    {
+     "name": "two hazard risk cards with tier and reliability",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "four trend charts",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "accessibility: controls named, inputs labelled, charts labelled",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no console errors, page errors, 5xx or unexpected 4xx",
+     "ok": true,
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "scenario": "B: increasing landslide risk",
+   "ok": true,
+   "checks": [
+    {
+     "name": "backend returns HIGH landslide",
+     "ok": true,
+     "detail": "Scenario applied: Rising landslide indicators768 simulated observations written. Backend assessments:SiteHazardResultSummarySNP-05LandslideHighgoodRainfall-triggered landslide: HIGH based on rainfall,"
+    },
+    {
+     "name": "candidate alert linked from simulator",
+     "ok": true,
+     "detail": "#/alerts/al_f36ba43522c7"
+    },
+    {
+     "name": "new observations are SIMULATED",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "alert page shows not-an-official-warning notice",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "evidence card present",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "reviewer sees Acknowledge",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "dialog focuses first field",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "Escape removes the dialog from the page",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "Escape cancels dialog without acting",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "sidebar badge updates after acknowledging (no stale count)",
+     "ok": true,
+     "detail": "before 1, after 0"
+    },
+    {
+     "name": "exactly one toast per action",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "resolve without reason is blocked",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "UI status matches API status",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "action log shows acknowledge, field verification, resolve in order",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "audit chain verifies in UI",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no console errors, page errors, 5xx or unexpected 4xx",
+     "ok": true,
+     "detail": ""
+    }
+   ],
+   "alert": "#/alerts/al_f36ba43522c7"
+  },
+  {
+   "scenario": "C: flash flood",
+   "ok": true,
+   "checks": [
+    {
+     "name": "flash-flood scenario HIGH",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "re-applying scenario does not duplicate the alert",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "evidence refers to flash flood",
+     "ok": true,
+     "detail": "Flash flood"
+    },
+    {
+     "name": "flood-specific features shown",
+     "ok": true,
+     "detail": "River stage critical|River stage, 1 h change|Rainfall, last 1 h critical|Rainfall, last 3 h"
+    },
+    {
+     "name": "alerts list renders open alerts",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no console errors, page errors, 5xx or unexpected 4xx",
+     "ok": true,
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "scenario": "D: sensor outage",
+   "ok": true,
+   "checks": [
+    {
+     "name": "reliability shown as poor",
+     "ok": true,
+     "detail": "poor,poor"
+    },
+    {
+     "name": "two sensors shown Offline",
+     "ok": true,
+     "detail": "2"
+    },
+    {
+     "name": "offline values marked not current",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no LOW tier during outage; underestimate disclosed",
+     "ok": true,
+     "detail": "Elevated +,Elevated +"
+    },
+    {
+     "name": "data-gap alerts listed separately from hazard alerts",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "gateway readings accepted",
+     "ok": true,
+     "detail": "{\"accepted\":14,\"duplicates\":0,\"rejected\":[],\"sites\":[\"SNP-05\"]}"
+    },
+    {
+     "name": "reliability recovers only after valid readings arrive",
+     "ok": true,
+     "detail": "degraded,degraded"
+    },
+    {
+     "name": "no sensors offline after recovery",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "card labels the latest (gateway) reading as Observed, not Simulated",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "chart draws observed and simulated readings as separate lines",
+     "ok": true,
+     "detail": "SIMULATED,OBSERVED"
+    },
+    {
+     "name": "mixed-origin readings disclosed in reliability notes",
+     "ok": true,
+     "detail": "Data reliability notesWire extensometer (cumulative): readings from mixed origins; only observed readings were used (101 reading(s) of another origin ignored, never combined).Soil-moisture probe (0.5 "
+    },
+    {
+     "name": "total blackout assessed as insufficient data",
+     "ok": true,
+     "detail": "[{\"id\":\"as_88931ebca6c8\",\"site_id\":\"TLW-02\",\"hazard\":\"flash_flood\",\"risk_tier\":\"INSUFFICIENT_DATA\",\"reliability\":\"POOR\",\"score\":0,\"summary\":\"Flash flood: insufficient data to assess \u2014 missing or stale critical input(s): river stage, river stage, 1 h change, rainfall, last 1 h, rainfall, last 3 h.\",\""
+    },
+    {
+     "name": "total blackout raises a data-gap alert in the UI",
+     "ok": true,
+     "detail": "Data gap Critical data gap while adverse weather cannot be ruled out (rain gauge unavailable) \u2014 river stage, river stage, 1 h change, rainfall, last 1 h, rainfall, last 3 h (flash flood) at Tilwara (M"
+    },
+    {
+     "name": "no console errors, page errors, 5xx or unexpected 4xx",
+     "ok": true,
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "scenario": "E: unauthorised actions",
+   "ok": true,
+   "checks": [
+    {
+     "name": "viewer sees no action buttons",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "direct API mutations denied with 403",
+     "ok": true,
+     "detail": "403,403,403,403"
+    },
+    {
+     "name": "no mutation happened",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "threshold editor disabled for viewer",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "simulator read-only for viewer",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no console errors, page errors, 5xx or unexpected 4xx",
+     "ok": true,
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "scenario": "UI: pages, filters, errors, mobile",
+   "ok": true,
+   "checks": [
+    {
+     "name": "route #/ renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/map renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/sites renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/alerts renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/simulator renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/incidents renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/sources renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/evaluation renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/audit renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "route #/settings renders",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "evaluation shows Not evaluated yet",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "incident search filters",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "synthetic filter only shows [SYNTHETIC] records",
+     "ok": true,
+     "detail": "[SYNTHETIC] Tension cracks reported above retaining wall|[SYNTHETIC] Rapid river rise floods riverside path|[SYNTHETIC] Minor slope failure blocks one lane|[SYNTHETIC] Rockfall onto road after overnight rain|[SYNTHETIC] Debris-laden stream crosses road|[SYNTHETIC] River above warning stage at conflu"
+    },
+    {
+     "name": "external links are http(s) only",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "invalid thresholds rejected with message",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "malformed JSON caught client-side",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "unknown route shows error state",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "unknown site shows error with retry",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "template explanation fallback shown",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no horizontal overflow on mobile #/",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no horizontal overflow on mobile #/sites/SNP-05",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no horizontal overflow on mobile #/alerts",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no horizontal overflow on mobile #/simulator",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "mobile menu button visible",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "mobile menu opens",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no console errors, page errors, 5xx or unexpected 4xx",
+     "ok": true,
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "scenario": "F: restart and persistence",
+   "ok": true,
+   "checks": [
+    {
+     "name": "resolved alert persisted across restart",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "actions persisted in order",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "audit chain valid after restart",
+     "ok": true,
+     "detail": "{\"valid\":true,\"events_checked\":45,\"broken_at_seq\":null,\"reason\":null,\"head_hash\":\"0a8b755bf45fdb54f17737a778c1f95250082cdcca61a81048872314e1e62ebe\",\"checked_at\":\"2026-10-29T11:54:37Z\"}"
+    },
+    {
+     "name": "sensors report fresh data after restart (gateway resumed)",
+     "ok": true,
+     "detail": "Reporting,Reporting,Reporting,Reporting"
+    },
+    {
+     "name": "overview timestamps are current",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no console errors, page errors, 5xx or unexpected 4xx",
+     "ok": true,
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "scenario": "G: production safeguards",
+   "ok": true,
+   "checks": [
+    {
+     "name": "production mode reported",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "simulator hidden from navigation",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "demo routes disabled (404)",
+     "ok": true,
+     "detail": "404 404"
+    },
+    {
+     "name": "no demo-password hint on login page",
+     "ok": true,
+     "detail": ""
+    },
+    {
+     "name": "no console errors, page errors, 5xx or unexpected 4xx",
+     "ok": true,
+     "detail": ""
+    }
+   ]
+  }
+ ]
+}

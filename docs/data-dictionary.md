@@ -15,13 +15,13 @@ All timestamps are ISO-8601 UTC strings (`2026-10-28T10:30:00Z`). JSON columns a
 |---|---|
 | `sites` | `id`, `name`, `district`, `latitude`, `longitude`, `elevation_m`, `hazards` (JSON), `config` (JSON threshold overrides), `sim_state` (JSON active demo scenario), `location_note` |
 | `sensors` | `id`, `site_id`, `sensor_type` (`rain_gauge`, `soil_moisture`, `extensometer`, `river_stage`), `metric`, `unit`, `expected_interval_s`, `source_id`, `status` |
-| `observations` | `id`, `sensor_id`, `site_id`, `source_id`, `metric`, `value`, `unit`, `observed_at`, `received_at`, `quality_status`, `origin`, `provenance`, `scenario_id`, `idempotency_key`; unique (`sensor_id`, `observed_at`, `origin`) |
+| `observations` | `id`, `sensor_id`, `site_id`, `source_id`, `metric`, `value`, `unit`, `observed_at`, `received_at`, `quality_status`, `origin`, `provenance`, `scenario_id`, `idempotency_key` (stored as `<source_id>:<client key>`, migration 005); unique (`sensor_id`, `observed_at`, `origin`) |
 | `assessments` | `id`, `site_id`, `hazard`, `risk_tier`, `reliability`, `score`, `rule_version`, `assessed_at`, `trigger`, `data_origin`, `payload` (full structured result), `previous_assessment_id` |
 | `alerts` | `id`, `site_id`, `hazard`, `kind`, `severity`, `status`, `title`, `data_origin`, `dedup_key`, `first_/latest_assessment_id`, `trigger_count`, ack/resolve actor and time, `resolution_category`, `resolution_reason` |
 | `alert_assessments` | link of every assessment that re-confirmed an alert |
-| `alert_actions` | `alert_id`, `actor_id`, `action_type`, `assignee`, `notes`, `created_at` |
+| `alert_actions` | `alert_id`, `seq` (per-alert order, migration 004), `actor_id`, `action_type`, `assignee`, `notes`, `created_at` |
 | `audit_log` | `seq`, `event_id`, `occurred_at`, actor fields, `event_type`, `entity_type`, `entity_id`, `details`, `prev_hash`, `hash` (append-only) |
-| `data_sources` | `id`, `name`, `source_type`, `origin`, `access_mode`, `description`, `attribution`, `licence`, `url`, `update_cadence`, `enabled`, `health_status`, `last_success_at`, `last_error`, `ingest_key_hash` |
+| `data_sources` | `id`, `name`, `source_type`, `origin`, `access_mode`, `description`, `attribution`, `licence`, `url`, `update_cadence`, `enabled`, `health_status`, `last_success_at`, `last_error`, `ingest_key_hash`, `ingest_site_scope` (JSON site ids a push source may write; migration 002) |
 | `incidents` | `id`, `hazard`, `title`, `event_date`, `date_precision`, `location_name`, `latitude`, `longitude`, `location_precision`, `description`, `source_name`, `source_url`, `origin` (`IMPORTED`/`SYNTHETIC`), `verification_status`, `related_site_id` |
 | `scenario_runs` | `id`, `name`, `site_ids`, `params`, `applied_by`, `applied_at` |
 | `evaluation_runs` | model, dataset (`dataset_kind` must be `real_labelled`), split, periods, regions, counts, `metrics`, `calibrated`, `limitations` |
@@ -34,3 +34,18 @@ All timestamps are ISO-8601 UTC strings (`2026-10-28T10:30:00Z`). JSON columns a
 | soil_moisture | `soil_moisture_vwc_pct` | % VWC | Volumetric water content |
 | extensometer | `displacement_mm` | mm | Cumulative displacement |
 | river_stage | `river_stage_m` | m | Water level above local datum |
+
+## Data-quality rules applied by the risk engine
+* **Duplicates:** readings of one sensor at the same `observed_at` count once, by origin precedence OBSERVED > IMPORTED > DERIVED > SIMULATED. Conflicting values degrade reliability.
+* **Usability:** a reading is usable if its quality is `good` or `suspect` and its value is a finite number.
+* **Freshness:** judged from the newest *usable* reading (a sensor sending only unusable readings is not "fresh").
+* **Ingestion range checks** (documented sensor ranges; values outside are stored as `bad`, not rejected): rain 0–200 mm per interval, soil moisture 0–100 % VWC, extensometer ±1000 mm, river stage 0–50 m.
+
+## Migrations
+`001_initial` schema · `002_ingest_scope` push-source site scope (existing gateways keep access to every site) · `003_query_indexes` audit/assessment indexes · `004_action_sequence` per-alert action order · `005_idempotency_per_source` per-source idempotency keys. All five apply on SQLite (tested) and PostgreSQL 16 (applied with `psql`). Migrations run automatically at start-up (`scripts/start.py`).
+
+## Reading selection (used by the risk engine and the overview chart)
+1. Readings with quality `bad`/`missing` or a non-finite value are unusable.
+2. Readings at the same observed time count once (origin precedence OBSERVED > IMPORTED > DERIVED > SIMULATED).
+3. If a sensor has readings of several origins, only the highest-precedence origin is used for all of its calculations; the others are reported as ignored (never summed or differenced).
+4. Freshness is judged from the newest *usable* reading.

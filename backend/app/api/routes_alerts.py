@@ -63,7 +63,7 @@ async def get_alert(request: Request, user: dict):
                         "JOIN assessments a ON a.id = l.assessment_id WHERE l.alert_id = ? ORDER BY a.assessed_at DESC LIMIT 50",
                         (alert_id,))
         actions = tx.all("SELECT ac.*, u.display_name AS actor_name, u.role AS actor_role FROM alert_actions ac "
-                         "JOIN users u ON u.id = ac.actor_id WHERE ac.alert_id = ? ORDER BY ac.created_at, ac.id", (alert_id,))
+                         "JOIN users u ON u.id = ac.actor_id WHERE ac.alert_id = ? ORDER BY ac.seq", (alert_id,))
         history = tx.all("SELECT seq, occurred_at, actor_name, actor_role, event_type, details, hash FROM audit_log "
                          "WHERE entity_type = 'alert' AND entity_id = ? ORDER BY seq", (alert_id,))
         users = {u["id"]: u["display_name"] for u in tx.all("SELECT id, display_name FROM users")}

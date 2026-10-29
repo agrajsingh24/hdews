@@ -1,5 +1,5 @@
 import { api, can, getSession } from "../api.js";
-import { render, h, originTag, when, ago, HAZARD, statePill, empty, toast, dateOnly, kv, s } from "../dom.js";
+import { render, h, safeUrl, originTag, when, ago, HAZARD, statePill, empty, toast, dateOnly, kv, s } from "../dom.js";
 import { createMap } from "../map.js";
 import { pageHead } from "../ui.js";
 
@@ -20,7 +20,7 @@ export async function incidentsPage(root: HTMLElement, params: URLSearchParams):
       h("p", null, i.description),
       kv([["Hazard", HAZARD[i.hazard] || i.hazard], ["Date", `${dateOnly(i.event_date)} (precision: ${i.date_precision})`],
         ["Location", `${i.location_name} — ${i.latitude.toFixed(3)}°N ${i.longitude.toFixed(3)}°E (${i.location_precision})`],
-        ["Source", i.source_url ? h("a", { href: i.source_url, target: "_blank", rel: "noopener noreferrer" }, i.source_name) : i.source_name],
+        ["Source", safeUrl(i.source_url) ? h("a", { href: safeUrl(i.source_url), target: "_blank", rel: "noopener noreferrer" }, i.source_name) : i.source_name],
         ["Notes", i.notes || "—"],
         ["Nearest sites", h("span", null, d.nearby_sites.map((n: any, k: number) => [k ? ", " : "", h("a", { href: `#/sites/${n.id}` }, n.name), ` (${n.distance_km} km)`]))]]),
       h("h3", null, "Associated observations"),
@@ -101,7 +101,7 @@ export async function sourcesPage(root: HTMLElement): Promise<void> {
         ["Observations stored", String(src.observation_count)], ["Sensors", String(src.sensor_count)],
         ["Update cadence", src.update_cadence || "—"], ["Attribution", src.attribution || "—"], ["Licence / terms", src.licence || "—"],
         ["Last error", src.last_error ? h("span", { class: "form-error" }, src.last_error, " ", when(src.last_error_at)) : "none recorded"],
-        ["Reference", src.url ? h("a", { href: src.url, target: "_blank", rel: "noopener noreferrer" }, "documentation") : "—"]])))));
+        ["Reference", safeUrl(src.url) ? h("a", { href: safeUrl(src.url), target: "_blank", rel: "noopener noreferrer" }, "documentation") : "—"]])))));
 }
 
 // --------------------------------------------------------------- evaluation
@@ -160,7 +160,8 @@ export async function auditPage(root: HTMLElement, params: URLSearchParams): Pro
       [h("button", { class: "btn", type: "button", onclick: async () => {
         verifyOut.textContent = "Verifying…";
         const v = await api("/api/audit-log/verify");
-        verifyOut.textContent = v.valid ? `Chain intact: ${v.events_checked} events verified.` : `Chain broken at event #${v.broken_at_seq}.`;
+        verifyOut.textContent = v.valid ? `Chain intact: ${v.events_checked} events verified. Head ${String(v.head_hash).slice(0, 12)}…`
+          : `Chain broken at event #${v.broken_at_seq}: ${v.reason}.`;
         verifyOut.className = v.valid ? "small ok-text" : "small form-error";
       } }, "Verify hash chain"), verifyOut]),
     h("nav", { class: "tabs", "aria-label": "Event filter" }, ...[["", "All"], ["alert.", "Alerts"], ["assessment.", "Assessments"], ["simulation.", "Simulation"], ["auth.", "Sign-ins"], ["ingestion.", "Ingestion"], ["site.", "Configuration"]]

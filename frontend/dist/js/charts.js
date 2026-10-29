@@ -49,18 +49,26 @@ export function lineChart(opts) {
         svg.appendChild(s("line", { x1: L, x2: W - R, y1: y(th.value), y2: y(th.value), class: `thr thr-${th.kind}` }));
         svg.appendChild(s("text", { x: W - R - 2, y: y(th.value) - 4, class: `thr-label thr-${th.kind}`, "text-anchor": "end" }, th.label));
     }
-    // line with gaps where reporting stopped
-    let d = "";
+    // One line per origin, with gaps where reporting stopped. Readings of different origins are
+    // separate series and are never joined into one line (HDEWS-033).
     let prev = null;
-    for (const p of good) {
-        const t = new Date(p.t).getTime();
-        const cmd = prev === null || t - prev > opts.gapS * 1000 * 2.5 ? "M" : "L";
-        d += `${cmd}${x(t).toFixed(1)},${y(p.v).toFixed(1)} `;
-        prev = t;
+    const origins = [...new Set(good.map(p => p.o || "UNKNOWN"))];
+    for (const origin of origins) {
+        let d = "";
+        let last = null;
+        for (const p of good.filter(q => (q.o || "UNKNOWN") === origin)) {
+            const t = new Date(p.t).getTime();
+            const cmd = last === null || t - last > opts.gapS * 1000 * 2.5 ? "M" : "L";
+            d += `${cmd}${x(t).toFixed(1)},${y(p.v).toFixed(1)} `;
+            last = t;
+        }
+        if (d)
+            svg.appendChild(s("path", { d, class: origin === "SIMULATED" ? "series series-sim" : "series", "data-origin": origin }));
     }
-    const sim = good.length > 0 && good.every(p => p.o === "SIMULATED");
-    if (d)
-        svg.appendChild(s("path", { d, class: sim ? "series series-sim" : "series" }));
+    for (const p of good)
+        prev = Math.max(prev ?? 0, new Date(p.t).getTime());
+    if (!good.length)
+        prev = null;
     for (const p of good.filter(p => p.o === "OBSERVED")) {
         svg.appendChild(s("circle", { cx: x(new Date(p.t).getTime()), cy: y(p.v), r: 3.5, class: "obs-dot" }));
     }

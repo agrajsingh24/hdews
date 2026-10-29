@@ -1,12 +1,17 @@
-# NOTE: written but not run in the development environment (no Docker daemon available there).
-# Build the frontend first: ./scripts/build_frontend.sh
+# Local container run: docker compose up --build   then open http://localhost:8000
+# Put HDEWS_DEMO_PASSWORD (>= 12 characters, not a documented default) in .env first.
 services:
   hdews:
     build: .
     ports: ["8000:8000"]
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
+      HDEWS_ENV: ${HDEWS_ENV:-demo}
       DATABASE_URL: sqlite:////data/hdews.db
+      HDEWS_DOTENV: "0"
     volumes: ["hdews-data:/data"]
+    restart: unless-stopped
 volumes:
   hdews-data:

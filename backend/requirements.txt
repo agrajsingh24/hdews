@@ -1,14 +1,8 @@
-# Runtime (versions verified in the build environment)
+# Runtime dependencies of the HDEWS server (what the Docker image installs).
+# Versions are the ones verified in the build environment. The server does NOT need the ML stack.
 starlette==1.7.0
 uvicorn==0.54.0
 pydantic==2.13.5
 anyio>=4.0
-# Tests
-pytest==9.1.1
-httpx>=0.27
-# ML evaluation harness
-scikit-learn==1.9.1
-numpy>=2.0
-pandas>=2.2
-# Optional: PostgreSQL (experimental, not exercised in the build environment)
+# Optional: PostgreSQL (experimental; the runtime path has not been exercised)
 # psycopg[binary]>=3.2

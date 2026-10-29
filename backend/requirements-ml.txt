@@ -1,0 +1,6 @@
+# Offline ML evaluation harness (ml/evaluate.py) and its tests. Not needed to run the server.
+# On Windows with Smart App Control / WDAC enforced, pandas' compiled extensions may be blocked (OS error 4551);
+# the backend test suite then skips only tests/test_ml_harness.py and says why. See README "Windows".
+scikit-learn==1.9.1
+numpy>=2.0
+pandas>=2.2

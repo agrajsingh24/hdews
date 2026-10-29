@@ -80,6 +80,12 @@ class Database:
                 with conn.transaction():
                     yield Tx(conn, "postgres")
 
+    def close(self) -> None:
+        """Close the persistent in-memory connection (file databases open one connection per transaction)."""
+        if self._memory_conn is not None:
+            self._memory_conn.close()
+            self._memory_conn = None
+
     # -- migrations ------------------------------------------------------
     def migrate(self) -> list[str]:
         applied: list[str] = []
@@ -94,7 +100,7 @@ class Database:
             if version in done:
                 continue
             with self.tx() as tx:
-                tx.script(path.read_text())
+                tx.script(path.read_text(encoding="utf-8"))
                 tx.execute("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)", (version, clock.now_iso()))
             applied.append(version)
         return applied

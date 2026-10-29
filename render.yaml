@@ -1,0 +1,40 @@
+# Render Blueprint for HDEWS (one Docker web service + one persistent disk for SQLite).
+#
+# Why these settings:
+# * plan: starter - Render's free web services spin down after 15 idle minutes and have an ephemeral
+#   filesystem without disk support, so the SQLite database (alerts, audit log) would be lost and the
+#   background telemetry/assessment loop would stop. A disk requires a paid instance.
+# * One instance only - a service with a disk cannot be scaled, which matches HDEWS's single-process design.
+# * autoDeploy: false - GitHub Actions triggers the deploy hook only after every CI job passes.
+# * Secrets use `sync: false`: Render asks for them when the Blueprint is created; they are never in git.
+#
+# HDEWS is a research prototype with SIMULATED telemetry and uncalibrated thresholds. It must not be
+# presented as an official or validated public warning service.
+services:
+  - type: web
+    name: hdews
+    runtime: docker
+    plan: starter
+    region: singapore          # closest Render region to Uttarakhand; cannot be changed after creation
+    branch: main
+    autoDeploy: false
+    healthCheckPath: /api/health
+    numInstances: 1
+    disk:
+      name: hdews-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: HDEWS_ENV
+        value: demo
+      - key: DATABASE_URL
+        value: sqlite:////data/hdews.db
+      - key: CLIENT_IP_SOURCE
+        value: x-forwarded-for-first   # verify after the first deploy (README "Deploying")
+      - key: HDEWS_DEMO_PASSWORD
+        sync: false                    # >= 12 characters, not a documented default
+      - key: FIELD_GATEWAY_INGEST_KEY
+        sync: false                    # optional, >= 16 random characters; must be set BEFORE the first deploy
+                                       # (it is stored when the demo data is first loaded). Empty = gateway API off.
+    # Optional LLM explanations: add LLM_PROVIDER=anthropic and LLM_API_KEY in the dashboard. Without them
+    # HDEWS uses deterministic template explanations. The LLM never computes risk.

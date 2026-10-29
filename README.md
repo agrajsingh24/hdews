@@ -10,14 +10,27 @@ HDEWS is a working decision-support prototype for rainfall-triggered landslide a
 
 ## 1. Quick start
 
-Prerequisites: **Python 3.11+** (tested on 3.13). Node is only needed to rebuild the frontend (`tsc`); a compiled build is included in `frontend/dist`.
+Prerequisites: **Python 3.11+** (tested on 3.13). Node 22 is only needed to rebuild the frontend; a compiled build is committed in `frontend/dist`.
 
+**Linux / macOS**
 ```bash
 cd hdews
-pip install -r backend/requirements.txt
-cp .env.example .env              # then set HDEWS_DEMO_PASSWORD and FIELD_GATEWAY_INGEST_KEY
-./scripts/run_dev.sh              # builds the UI if needed, seeds the DB on first run, serves http://127.0.0.1:8000
+python -m pip install -r backend/requirements-dev.txt   # server + test tools
+python -m pip install -r backend/requirements-ml.txt    # optional: offline ML evaluation harness
+cp .env.example .env                                     # then set HDEWS_DEMO_PASSWORD
+./scripts/run_dev.sh                                     # migrates, seeds an empty DB, serves http://127.0.0.1:8000
 ```
+
+**Windows (PowerShell)**
+```powershell
+cd hdews
+py -m pip install -r backend\requirements-dev.txt
+py -m pip install -r backend\requirements-ml.txt       # optional, see "Windows: Smart App Control" below
+Copy-Item .env.example .env                             # then set HDEWS_DEMO_PASSWORD
+py scripts\start.py                                     # serves http://127.0.0.1:8000
+```
+
+`backend/requirements.txt` holds only what the server needs (Starlette, uvicorn, Pydantic). The ML stack (numpy, pandas, scikit-learn) is used only by the offline evaluation harness in `ml/`.
 
 Sign in with one of the demo accounts (password = `HDEWS_DEMO_PASSWORD`, default `hdews-demo` if unset):
 
@@ -32,14 +45,20 @@ Other commands:
 
 | Task | Command |
 |---|---|
-| Run all tests | `cd backend && python -m pytest` |
-| Reset and reseed the database | `python scripts/reset_db.py` |
-| Seed an empty database | `python scripts/seed_demo_data.py` |
+| Run all backend tests | `cd backend && python -m pytest` |
+| Line + branch coverage (stdlib, no plugins) | `python scripts/coverage_report.py` → `docs/coverage.json` |
+| Browser end-to-end scenarios A–G | `python e2e/run_e2e.py` (needs Node + Playwright Chromium) → `e2e/results.json` |
+| Performance smoke test | `python scripts/perf_smoke.py` → `docs/perf_results.json` |
+| Type-check the frontend | `cd frontend && npm run typecheck` |
+| Rebuild the frontend | `cd frontend && npm install && npm run build` (pins `typescript` 7.0.2; `./scripts/build_frontend.sh` does the same) |
+| Reset and reseed the demo database | `python scripts/reset_db.py` (refuses non-HDEWS files; `--force` to discard observed data) |
+| Seed an empty database | `python scripts/seed_demo_data.py` (refused when `HDEWS_ENV=production`) |
 | Apply a scenario from the CLI | `python scripts/run_demo_scenario.py rising_landslide_indicators SNP-05` (`--list` for presets) |
 | Push a test reading through the ingestion API | `FIELD_GATEWAY_INGEST_KEY=... python scripts/send_sensor_reading.py AGM-03-SOIL 31.2` |
-| Rebuild the frontend | `./scripts/build_frontend.sh` (needs `tsc` ≥ 5) |
 | Run the ML evaluation harness | `python -m ml.evaluate --help` (needs a real labelled dataset) |
-| Start the server manually | `uvicorn app.main:factory --factory --app-dir backend --port 8000` |
+| Start the server (any OS) | `python scripts/start.py` (migrates, seeds an empty DB if allowed, serves; `HOST`/`PORT` env) |
+| Manage accounts (create, set-password, disable) | `python scripts/manage_users.py --help` (audited; works in production) |
+| Run in a container | `docker compose up --build` (needs `HDEWS_DEMO_PASSWORD` in `.env`) |
 
 ## 2. Demo walkthrough (the acceptance test)
 
@@ -107,7 +126,7 @@ Full details: [ml/model_cards/baseline-rules-v0.1.md](ml/model_cards/baseline-ru
 | Landslide | ★ rain 24 h; rain 1 h; ★ soil-moisture excess over site baseline; 24 h slope displacement | 1/2; 1/2; 1/2; 2/4 |
 | Flash flood | ★ river stage vs site warning/danger stage; 1 h river rise; ★ rain 1 h; rain 3 h | 2/4; 1/2; 1/2; 1/2 |
 
-Score ≥ 4 → HIGH, ≥ 2 → ELEVATED, else LOW. Reliability: POOR if a critical input is missing/stale; DEGRADED if any input is incomplete (<75 % expected samples), delayed (> 2 reporting intervals), suspect, or a non-critical input is missing. A candidate **hazard** alert is raised at HIGH; a **data-gap** alert is raised when reliability is POOR during adverse conditions. Points are ordinal, **not probabilities**.
+Score ≥ 4 → HIGH, ≥ 2 → ELEVATED, else LOW. An unavailable input whose sensor is configured at the site is also treated as critical when its data could change the tier, so a sensor outage never lowers the apparent risk. Reliability: POOR if a critical input is missing/stale; DEGRADED if any input is incomplete (<75 % expected samples), delayed (> 2 reporting intervals), suspect, or a non-critical input is missing. If a sensor has readings of several origins (e.g. a real gateway and the simulator), only the highest-precedence origin (observed > imported > simulated) is used for that sensor; series are never summed or differenced across origins. A candidate **hazard** alert is raised at HIGH. A **data-gap** alert is raised when reliability is POOR and conditions are adverse, or when the site's rain gauge is itself unavailable so adverse weather cannot be ruled out. Points are ordinal, **not probabilities**.
 
 ## 6. Data
 
@@ -128,29 +147,74 @@ Documented in [docs/api.md](docs/api.md). Main endpoints: `/api/health`, `/api/m
 
 ## 8. Verification performed
 
-* **41 automated tests pass** (`cd backend && python -m pytest`): 15 risk-engine unit tests, 14 API tests (auth, RBAC, validation, pagination, ingestion, production lock-down), 8 workflow tests (scenario → alert → review → audit, dedup, outage, stale data recovery, append-only audit, LLM grounding), 4 ML-harness tests.
-* **PostgreSQL schema** applied cleanly to PostgreSQL 16 with `psql`, including the append-only trigger.
-* **Headless Chromium walkthrough** of the full acceptance journey (login → overview → map → site → simulator → reviewer acknowledge/act/resolve → audit verification → outage scenario → evaluation, incidents, sources, alerts, settings, mobile viewport) completed with **zero console errors**.
+A full audit, repair and test pass was carried out on 2026-10-28 in two passes. The second pass independently re-verified
+the first. See [docs/BUG_AUDIT_REPORT.md](docs/BUG_AUDIT_REPORT.md), [docs/TEST_RESULTS.md](docs/TEST_RESULTS.md),
+[docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) and [docs/TEST_PLAN.md](docs/TEST_PLAN.md). In short:
 
-## 9. Feature status
+* **36 confirmed defects**, each reproduced before fixing: 35 fixed and verified, and 1 (PostgreSQL audit-chain locking) fixed but unverifiable here. They include a Critical production default-credential issue and 7 High-severity defects, among them safety defects in the risk engine and alerting: double-counted rainfall, observed and simulated series combined into a false HIGH, stale values shown as current, outages lowering apparent risk, and a total blackout raising no alert. **No threshold or point value was changed.**
+* A third, deployment-readiness pass (2026-10-29) fixed **9 more defects**: no safe hosted mode (High), the whole test suite aborting when Windows blocks pandas, Windows text-encoding corruption of the seed data, rate limits shared by all users behind a proxy, an unvalidated `HDEWS_ENV`, and container issues.
+* Backend: **489 tests pass, 1 skipped** (PostgreSQL driver unavailable). The same result was obtained under a Windows-style cp1252 locale. Browser E2E scenarios A–G: **93/93 checks**. Coverage of the risk engine: 99.8 % lines. Exact numbers, commands and limitations are in `docs/TEST_RESULTS.md`.
+* A passing test suite verifies the software; it does **not** validate HDEWS as a disaster-prediction or official early-warning system.
+
+## 9. Testing
+
+```bash
+cd backend && python -m pytest                     # full backend suite (~2 min)
+cd backend && python -m pytest tests/test_risk_engine.py tests/test_risk_engine_boundaries.py   # risk engine only
+python scripts/coverage_report.py                  # line + branch coverage (stdlib; coverage.py not required)
+python scripts/perf_smoke.py --days 30             # performance smoke test on a temporary database
+python e2e/run_e2e.py --shots /tmp/hdews-shots     # browser E2E A-G (needs Node + Playwright + Chromium)
+python docs/evidence/second_pass_verify_claims.py .   # re-run the defect reproductions
+```
+Every test uses an in-memory or temporary database; none touches `backend/hdews.db`.
+
+## 10. Feature status
 
 **Implemented and tested:** role-based login (demo accounts), overview, interactive map with layers/legend/drawer, site pages with sensor health and charts, landslide and flash-flood baseline engine, evidence cards with change tracking, insufficient-data and lower-bound logic, candidate alert lifecycle with dedup and state enforcement, data-gap alerts, hash-chained append-only audit log, scenario simulator (5 presets + custom inputs + connectivity/delay), continuing simulated telemetry, authenticated idempotent ingestion API, data-source registry with derived health, historical incident explorer (search, filters, timeline, map), evaluation page with honest "Not evaluated yet", evaluation harness, admin threshold editor, template explanations, optional grounded LLM explanations, responsive layout.
 
 **Simulated / demo-only:** all sensor telemetry, hazard-zone buffers, pilot-area box, schematic river lines, synthetic incidents, demo playbook (not an approved SOP), demo user accounts, "test notification" actions (recorded, never sent).
 
-**Pending / not implemented:** FastAPI + Next.js port; PostgreSQL runtime path under test (needs `psycopg`); PostGIS; real NASA IMERG / Copernicus / IMD adapters; any validated ML model (needs a labelled event inventory); calibrated thresholds; real identity provider; SMS/CAP/SACHET integration (out of scope without authorisation); Docker image build (files written, not built); offline/PWA capability; multi-language alert templates.
+**Pending / not implemented:** FastAPI + Next.js port; PostgreSQL runtime path under test (needs `psycopg`; migrations 001–005 verified with `psql` on PostgreSQL 16); PostGIS; real NASA IMERG / Copernicus / IMD adapters; any validated ML model (needs a labelled event inventory); calibrated thresholds; real identity provider; SMS/CAP/SACHET integration (out of scope without authorisation); Docker image build (files written, not built); offline/PWA capability; multi-language alert templates.
 
 **Requires credentials or data:** `LLM_API_KEY` (optional explanations; the live call was not exercised — only the grounding logic with a mocked provider), NASA Earthdata account, Copernicus Data Space account, an authorised labelled landslide/flood inventory, physical gateway hardware.
 
-## 10. Troubleshooting
+## 11. Deploying
+
+The whole application is **one Python process**: it serves the API, the compiled frontend (same origin, so no CORS) and the background telemetry/assessment loop, with a **SQLite database on persistent storage**. There is no GPU or ML inference at runtime: the ML harness is an offline tool and is not installed in the image.
+
+**Recommended:** GitHub (source + Actions) → Render web service built from the `Dockerfile`, on a paid instance with a 1 GB persistent disk (`render.yaml`). Full steps, costs and alternatives are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Key points:
+
+* `HDEWS_ENV=demo` is the hosted mode: simulator on, a strong `HDEWS_DEMO_PASSWORD` is **required** (start-up refuses defaults or anything under 12 characters), and secrets are never printed to logs.
+* Do **not** use GitHub Pages (it cannot run the Python backend) or a free Render instance (it spins down after 15 idle minutes and loses the SQLite file on every restart or deploy).
+* CI (`.github/workflows/ci.yml`) runs the backend tests on Linux and Windows, checks that `frontend/dist` matches `frontend/src`, builds and smoke-tests the Docker image, runs the browser E2E suite, and only then calls the Render deploy hook on `main`.
+* A hosted instance is still a **research prototype with simulated data**. Do not present it as a public warning service.
+
+## 12. Troubleshooting
+
+* **Windows: `ImportError: DLL load failed while importing nattype: An Application Control policy has blocked this file.`**
+  Windows **Smart App Control** or **App Control for Business (WDAC)** refused to load pandas' compiled extension. It is not
+  Authenticode-signed (Windows error 4551). This is a Windows security policy decision, not a broken or incompatible package,
+  and it only affects the optional ML harness: the server never imports pandas. Since this release the backend test suite
+  skips only `tests/test_ml_harness.py` and prints this reason; previously the whole run was interrupted. To confirm the cause,
+  open *Windows Security → App & browser control → Smart App Control*, or look in *Event Viewer → Applications and Services
+  Logs → Microsoft → Windows → CodeIntegrity → Operational* for the blocked `.pyd` file. **Do not turn off Smart App Control
+  for this.** To run the ML harness, use WSL 2, the Docker image with the ML requirements added, or the GitHub Actions run
+  (Linux and Windows runners there execute it), or ask your administrator about an approved policy.
 
 * *"Database already seeded"* — run `python scripts/reset_db.py` to start over.
 * *Everything shows "Insufficient data"* — the server was stopped for a while, so simulated sensors went stale (by design). Keep the server running a minute (the background loop catches up) or click *Re-run assessment*.
 * *Map has no basemap* — tiles are optional and need internet; tick *Online basemap* on the Live map page.
 * *401 on ingestion* — the key must match `FIELD_GATEWAY_INGEST_KEY` at seed time; reset the DB after changing it.
-* *Port in use* — `PORT=8010 ./scripts/run_dev.sh`.
+* *Port in use* — set `PORT=8010` (any OS) before `python scripts/start.py`.
+* *"HDEWS start-up refused"* — the message says why (e.g. `HDEWS_ENV=demo` without a strong `HDEWS_DEMO_PASSWORD`, an unknown `HDEWS_ENV`, or default passwords on a hosted instance). Nothing is served until it is fixed.
+* *"Refusing to reset"* — `reset_db.py` only deletes HDEWS databases and keeps observed data unless `--force` is given. Back the file up first.
+* *"Refusing to start in production"* — an active account still uses a documented demo password. Disable it or change the password; the demo seed cannot be used in production.
+* *A landslide site shows "Insufficient data" in normal weather* — a sensor configured at that site is unavailable (e.g. UKM-06's extensometer is in maintenance). By design, LOW is never claimed while configured evidence that could contradict it is missing.
+* *A sensor went stale after I pushed a test reading* — once a sensor has observed readings, only those are used (they take precedence over simulated ones). If no further observed readings arrive, the sensor is correctly shown stale until the test reading leaves the 26 h window. Use the simulator's sites for demos, or keep pushing readings.
+* *Gateway readings rejected as "outside this source's site scope"* — check or set the scope: `python scripts/set_ingest_scope.py FIELD-GATEWAY-01 [SITE ...]`.
+* *405 "method not allowed"* — the endpoint exists but not for that HTTP method; see the `Allow` header and `docs/api.md`.
 
-## 11. Repository layout
+## 13. Repository layout
 
 ```
 backend/app/        Starlette app: api/, services/ (risk_engine, alerts, assessments, simulator, ingestion, audit, explanations), migrations/

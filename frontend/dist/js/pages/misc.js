@@ -1,5 +1,5 @@
 import { api, can, getSession } from "../api.js";
-import { render, h, originTag, when, ago, HAZARD, statePill, empty, toast, dateOnly, kv, s } from "../dom.js";
+import { render, h, safeUrl, originTag, when, ago, HAZARD, statePill, empty, toast, dateOnly, kv, s } from "../dom.js";
 import { createMap } from "../map.js";
 import { pageHead } from "../ui.js";
 // ---------------------------------------------------------------- incidents
@@ -17,7 +17,7 @@ export async function incidentsPage(root, params) {
         const i = d.incident;
         detail.replaceChildren(h("h2", null, i.title), h("p", null, originTag(i.origin), " ", h("span", { class: `state state-${i.verification_status}` }, i.verification_status.replace(/_/g, " ").toLowerCase())), h("p", null, i.description), kv([["Hazard", HAZARD[i.hazard] || i.hazard], ["Date", `${dateOnly(i.event_date)} (precision: ${i.date_precision})`],
             ["Location", `${i.location_name} — ${i.latitude.toFixed(3)}°N ${i.longitude.toFixed(3)}°E (${i.location_precision})`],
-            ["Source", i.source_url ? h("a", { href: i.source_url, target: "_blank", rel: "noopener noreferrer" }, i.source_name) : i.source_name],
+            ["Source", safeUrl(i.source_url) ? h("a", { href: safeUrl(i.source_url), target: "_blank", rel: "noopener noreferrer" }, i.source_name) : i.source_name],
             ["Notes", i.notes || "—"],
             ["Nearest sites", h("span", null, d.nearby_sites.map((n, k) => [k ? ", " : "", h("a", { href: `#/sites/${n.id}` }, n.name), ` (${n.distance_km} km)`]))]]), h("h3", null, "Associated observations"), d.associated_observations.length ? h("p", null, `${d.associated_observations.length} observations recorded at the related site on this date.`)
             : h("p", { class: "muted small" }, d.associated_observations_note));
@@ -70,7 +70,7 @@ export async function sourcesPage(root) {
         ["Observations stored", String(src.observation_count)], ["Sensors", String(src.sensor_count)],
         ["Update cadence", src.update_cadence || "—"], ["Attribution", src.attribution || "—"], ["Licence / terms", src.licence || "—"],
         ["Last error", src.last_error ? h("span", { class: "form-error" }, src.last_error, " ", when(src.last_error_at)) : "none recorded"],
-        ["Reference", src.url ? h("a", { href: src.url, target: "_blank", rel: "noopener noreferrer" }, "documentation") : "—"]])))));
+        ["Reference", safeUrl(src.url) ? h("a", { href: safeUrl(src.url), target: "_blank", rel: "noopener noreferrer" }, "documentation") : "—"]])))));
 }
 // --------------------------------------------------------------- evaluation
 export async function evaluationPage(root) {
@@ -112,7 +112,8 @@ export async function auditPage(root, params) {
     render(root, pageHead("Audit log", "Append-only. Each event is chained to the previous one with a SHA-256 hash, and the database rejects edits and deletions.", [h("button", { class: "btn", type: "button", onclick: async () => {
                 verifyOut.textContent = "Verifying…";
                 const v = await api("/api/audit-log/verify");
-                verifyOut.textContent = v.valid ? `Chain intact: ${v.events_checked} events verified.` : `Chain broken at event #${v.broken_at_seq}.`;
+                verifyOut.textContent = v.valid ? `Chain intact: ${v.events_checked} events verified. Head ${String(v.head_hash).slice(0, 12)}…`
+                    : `Chain broken at event #${v.broken_at_seq}: ${v.reason}.`;
                 verifyOut.className = v.valid ? "small ok-text" : "small form-error";
             } }, "Verify hash chain"), verifyOut]), h("nav", { class: "tabs", "aria-label": "Event filter" }, ...[["", "All"], ["alert.", "Alerts"], ["assessment.", "Assessments"], ["simulation.", "Simulation"], ["auth.", "Sign-ins"], ["ingestion.", "Ingestion"], ["site.", "Configuration"]]
         .map(([k, l]) => h("a", { href: link({ event_prefix: k, offset: "" }), class: (params.get("event_prefix") || "") === k ? "active" : "" }, l))), params.get("entity_id") ? h("p", { class: "small" }, `Filtered to ${params.get("entity_id")}. `, h("a", { href: link({ entity_id: "" }) }, "Clear filter")) : null, d.items.length ? h("div", { class: "table-scroll" }, h("table", { class: "compact audit" }, h("thead", null, h("tr", null, ...["#", "Time", "Actor", "Event", "Entity", "Details", "Hash"].map(t => h("th", null, t)))), h("tbody", null, d.items.map((ev) => h("tr", null, h("td", { class: "num" }, String(ev.seq)), h("td", { class: "nowrap" }, when(ev.occurred_at)), h("td", null, ev.actor_name, h("div", { class: "muted small" }, ev.actor_role)), h("td", null, h("code", null, ev.event_type)), h("td", { class: "small" }, ev.entity_type === "alert" ? h("a", { href: `#/alerts/${ev.entity_id}` }, ev.entity_id) :

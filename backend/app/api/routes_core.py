@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import timedelta
 
 from pydantic import BaseModel, Field
@@ -12,6 +13,7 @@ from ..config import REPO_ROOT
 from ..services import audit
 from ..services.assessments import latest_assessment
 from ..services.risk_engine import DEFAULT_CONFIG, RULE_VERSION, THRESHOLD_STATUS
+from ..services.risk_engine.features import dedupe_readings, is_usable, single_origin
 from ..services.risk_engine.playbook import PLAYBOOK_VERSION
 from .common import ApiError, body_as, client_key, current_user, db, ok, require, settings
 
@@ -23,8 +25,11 @@ async def health(request: Request):
     with db(request).tx() as tx:
         tx.scalar("SELECT 1")
         last_obs = tx.scalar("SELECT MAX(received_at) FROM observations")
+    # version: the deployed commit, when the platform provides it (lets CI confirm the new release is live).
+    version = os.environ.get("HDEWS_VERSION") or os.environ.get("RENDER_GIT_COMMIT") or None
     return ok({"status": "ok", "time": clock.now_iso(), "database": db(request).dialect,
-               "last_observation_received_at": last_obs, "environment": settings(request).app_env})
+               "last_observation_received_at": last_obs, "environment": settings(request).app_env,
+               "version": version})
 
 
 async def meta(request: Request):
@@ -33,6 +38,8 @@ async def meta(request: Request):
         "app": "HDEWS — Himalayan Disaster Early Warning System (prototype)",
         "environment": s.app_env, "demo_endpoints": s.demo_endpoints_active,
         "demo_login_hint": (None if s.is_production else
+                            "Demo accounts: admin, analyst, reviewer, viewer. Ask the operator of this hosted "
+                            "demonstration for the password." if s.app_env == "demo" else
                             "Demo accounts: admin, analyst, reviewer, viewer. Password is set by HDEWS_DEMO_PASSWORD "
                             "(default 'hdews-demo')."),
         "rule_version": RULE_VERSION, "threshold_status": THRESHOLD_STATUS, "playbook_version": PLAYBOOK_VERSION,
@@ -51,7 +58,8 @@ async def login(request: Request):
     body = await body_as(request, LoginIn)
     with db(request).tx() as tx:
         user = tx.one("SELECT * FROM users WHERE username = ?", (body.username.strip().lower(),))
-        if not user or user["status"] != "active" or not security.verify_password(body.password, user["password_hash"]):
+        valid = security.verify_or_dummy(body.password, user["password_hash"] if user else None)
+        if not user or user["status"] != "active" or not valid:
             raise ApiError(401, "invalid_credentials", "Username or password is incorrect.")
         token, expires = security.create_session(tx, user["id"], settings(request).session_ttl_hours)
         audit.record(tx, "auth.login", "user", user["id"], {"username": user["username"]},
@@ -119,9 +127,9 @@ async def overview(request: Request, user: dict):
         origin_counts = {r["origin"]: r["n"] for r in tx.all(
             "SELECT origin, COUNT(*) AS n FROM observations WHERE observed_at > ? GROUP BY origin", (since24,))}
         rain_rows = tx.all(
-            "SELECT o.site_id, o.observed_at, o.value FROM observations o JOIN sensors s ON s.id = o.sensor_id "
-            "WHERE s.sensor_type = 'rain_gauge' AND o.observed_at > ? AND o.received_at <= ? "
-            "AND o.quality_status IN ('good','suspect') ORDER BY o.observed_at", (since24, clock.iso(ref)))
+            "SELECT o.id, o.site_id, o.sensor_id, o.observed_at, o.value, o.origin, o.quality_status FROM observations o "
+            "JOIN sensors s ON s.id = o.sensor_id WHERE s.sensor_type = 'rain_gauge' AND o.observed_at > ? "
+            "AND o.received_at <= ? ORDER BY o.observed_at", (since24, clock.iso(ref)))
         recent_obs = tx.all(
             "SELECT o.id, o.site_id, o.sensor_id, o.metric, o.value, o.unit, o.observed_at, o.received_at, o.origin, "
             "o.quality_status FROM observations o ORDER BY o.received_at DESC, o.id DESC LIMIT 8")
@@ -133,10 +141,22 @@ async def overview(request: Request, user: dict):
     # Hourly rainfall per site (sum of samples per clock hour) for the last 24 h.
     hours = [clock.iso((ref - timedelta(hours=i)).replace(minute=0, second=0)) for i in range(23, -1, -1)]
     rain: dict[str, dict[str, float]] = {s["id"]: {h: 0.0 for h in hours} for s in sites}
+    # Same reading-selection rules as the risk engine (HDEWS-034): one reading per timestamp and one
+    # origin per sensor, so the chart never double-counts or mixes real and simulated rainfall.
+    by_sensor: dict[str, list[dict]] = {}
     for r in rain_rows:
-        bucket = clock.iso(clock.parse(r["observed_at"]).replace(minute=0, second=0))
-        if bucket in rain.get(r["site_id"], {}):
-            rain[r["site_id"]][bucket] += r["value"]
+        by_sensor.setdefault(r["sensor_id"], []).append(r)
+    rain_origin: dict[str, str | None] = {}
+    for readings in by_sensor.values():
+        readings, _, _ = dedupe_readings(readings)
+        readings, origin_used, _ = single_origin(readings)
+        for r in readings:
+            if not is_usable(r):
+                continue
+            rain_origin[r["site_id"]] = origin_used
+            bucket = clock.iso(clock.parse(r["observed_at"]).replace(minute=0, second=0))
+            if bucket in rain.get(r["site_id"], {}):
+                rain[r["site_id"]][bucket] += r["value"]
     return ok({
         "generated_at": clock.iso(ref),
         "pilot_area": "Rudraprayag district, Uttarakhand (pilot study area)",
@@ -152,7 +172,8 @@ async def overview(request: Request, user: dict):
         },
         "sensor_states": sensor_states, "sensor_total": len(sensors),
         "rain_hourly": {"hours": hours, "unit": "mm per hour",
-                        "series": {k: [round(v[h], 1) for h in hours] for k, v in rain.items()}},
+                        "series": {k: [round(v[h], 1) for h in hours] for k, v in rain.items()},
+                        "origin": rain_origin},
         "recent_observations": recent_obs,
         "tier_changes": [{"occurred_at": t["occurred_at"], "site_id": t["entity_id"], **json.loads(t["details"])}
                          for t in tier_changes],
@@ -169,7 +190,7 @@ def _data_mode(origin_counts: dict) -> str:
 
 @require("read")
 async def map_layers(request: Request, user: dict):
-    doc = json.loads((REPO_ROOT / "data" / "sample" / "sites.json").read_text())
+    doc = json.loads((REPO_ROOT / "data" / "sample" / "sites.json").read_text(encoding="utf-8"))
     with db(request).tx() as tx:
         sites = tx.all("SELECT id, name, latitude, longitude, hazards, elevation_m, location_note FROM sites ORDER BY id")
         out_sites = []
@@ -222,11 +243,21 @@ async def rules(request: Request, user: dict):
         "tier_logic": [
             "Each indicator is compared with site-specific demo thresholds and awarded ordinal points (watch / high).",
             "Score ≥ high_min_score → HIGH; ≥ elevated_min_score → ELEVATED; otherwise LOW.",
+            "A missing or stale input is treated as critical if it is a documented critical input, or if its sensor is "
+            "configured at the site and the unavailable data could change the tier (so an outage never lowers the "
+            "apparent risk). Inputs with no sensor configured at the site are reported, not treated as outages.",
             "Reliability is POOR if any critical input is missing or stale; DEGRADED if any input is incomplete, "
-            "delayed, suspect or a non-critical input is missing; otherwise GOOD.",
+            "delayed, suspect, conflicting or not configured; otherwise GOOD.",
             "If reliability is POOR and the available evidence scores LOW, the tier is INSUFFICIENT_DATA (never LOW).",
-            "If inputs are missing but the available evidence already scores ELEVATED/HIGH, that tier is kept and "
-            "marked as a lower bound; max_possible_tier shows how far missing inputs could move it.",
+            "If inputs are missing but the available evidence already scores ELEVATED/HIGH, that tier is kept; it is "
+            "marked as a possible underestimate only when max_possible_tier (missing inputs at their worst) is higher.",
+            "Readings at the same timestamp from several sources count once (observed > imported > simulated). If a "
+            "sensor has readings of several origins, only the highest-precedence origin is used for all its "
+            "calculations (never summed or differenced across origins) and reliability is at most DEGRADED. "
+            "Freshness is judged from the newest usable reading, not the newest message.",
+            "A candidate hazard alert is raised at HIGH. A data-gap alert is raised when reliability is POOR and either "
+            "conditions are adverse (observed rain ≥ the site setting, or the available evidence scores ELEVATED+) or "
+            "the site's rain gauge is itself unavailable, so adverse weather cannot be ruled out.",
             "Points are not probabilities and have not been calibrated against events.",
         ],
         "playbook": {"version": PLAYBOOK_VERSION,

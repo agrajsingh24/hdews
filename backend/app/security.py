@@ -36,16 +36,36 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored: str) -> bool:
+    """Constant-time scrypt check. A malformed stored hash never verifies and never raises (HDEWS-025)."""
     try:
         scheme, salt_b64, digest_b64 = stored.split("$")
-    except ValueError:
+        if scheme != "scrypt":
+            return False
+        salt = base64.b64decode(salt_b64, validate=True)
+        expected = base64.b64decode(digest_b64, validate=True)
+        if not salt or not expected:
+            return False
+        actual = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=len(expected))
+    except (ValueError, TypeError, AttributeError):  # binascii.Error is a ValueError
         return False
-    if scheme != "scrypt":
-        return False
-    salt = base64.b64decode(salt_b64)
-    expected = base64.b64decode(digest_b64)
-    actual = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
     return hmac.compare_digest(actual, expected)
+
+
+# Hash of an unguessable value, used so that unknown usernames cost the same scrypt work as
+# wrong passwords (prevents username enumeration by timing, HDEWS-019).
+_DUMMY_HASH = hash_password(secrets.token_urlsafe(16))
+
+
+def verify_or_dummy(password: str, stored: str | None) -> bool:
+    if stored is None:
+        verify_password(password, _DUMMY_HASH)
+        return False
+    return verify_password(password, stored)
+
+
+def accounts_with_default_passwords(tx: Tx, defaults: tuple[str, ...]) -> list[str]:
+    rows = tx.all("SELECT username, password_hash FROM users WHERE status = 'active'")
+    return [r["username"] for r in rows if any(verify_password(d, r["password_hash"]) for d in defaults)]
 
 
 def hash_token(token: str) -> str:

@@ -68,6 +68,18 @@ def assess(site: dict, hazard: str, indicators: dict[str, Indicator], health: di
     score = sum(f.points for f in factors)
     computed_tier = tier_for_score(score, cfg)
 
+    # Invariant: a sensor outage must not lower apparent risk (HDEWS-009). LOW is a positive claim,
+    # so if inputs from sensors *configured at this site* are unavailable and could, together, change
+    # the tier, that gap is treated as critical. Inputs with no sensor configured keep their documented
+    # (non-critical) status: that is a site design choice, reported as DEGRADED.
+    unavailable_configured = [f for f in factors if f.key in indicators and f.status in ("missing", "stale")]
+    gap_headroom = sum(f.max_points - f.points for f in unavailable_configured)
+    if tier_for_score(score + gap_headroom, cfg) != computed_tier:
+        for f in unavailable_configured:
+            if not f.critical:
+                f.critical = True
+                f.critical_reason = "configured sensor unavailable and its data could change the tier"
+
     missing = [f for f in factors if f.status in ("missing", "stale")]
     critical_missing = [f for f in missing if f.critical]
     degraded_notes: list[str] = []
@@ -84,6 +96,15 @@ def assess(site: dict, hazard: str, indicators: dict[str, Indicator], health: di
             degraded_notes.append(f"{h.label}: latest reading arrived {int((h.delay_s or 0) // 60)} min after it was observed.")
         if h.sensor_id in used_sensor_ids and h.latest_quality == "suspect":
             degraded_notes.append(f"{h.label}: latest reading flagged suspect.")
+        if h.sensor_id in used_sensor_ids and h.state == "FRESH" and h.latest_quality in ("bad", "missing"):
+            degraded_notes.append(f"{h.label}: sensor is reporting but its latest reading is unusable ({h.latest_quality}).")
+        if h.sensor_id in used_sensor_ids and h.other_origin_readings_ignored:
+            degraded_notes.append(f"{h.label}: readings from mixed origins; only {(h.origin_used or 'unknown').lower()} "
+                                  f"readings were used ({h.other_origin_readings_ignored} reading(s) of another origin "
+                                  "ignored, never combined).")
+        if h.sensor_id in used_sensor_ids and h.conflicting_duplicates:
+            degraded_notes.append(f"{h.label}: {h.conflicting_duplicates} timestamp(s) had conflicting readings from different "
+                                  "sources; observed readings were used.")
 
     if critical_missing:
         reliability = "POOR"
@@ -92,19 +113,16 @@ def assess(site: dict, hazard: str, indicators: dict[str, Indicator], health: di
     else:
         reliability = "GOOD"
 
-    tier = computed_tier
-    lower_bound = False
-    if reliability == "POOR":
-        if computed_tier == "LOW":
-            tier = "INSUFFICIENT_DATA"
-        else:
-            lower_bound = True
-    elif any(f.status in ("missing", "stale", "incomplete") for f in factors):
-        lower_bound = computed_tier != "HIGH"
-
-    # Headroom: the tier reachable if every missing/stale factor were at its "high" level.
+    # Headroom: the tier reachable if every missing/stale/incomplete factor were at its "high" level.
     headroom = sum(f.max_points - f.points for f in factors if f.status in ("missing", "stale", "incomplete"))
     max_possible_tier = tier_for_score(score + headroom, cfg)
+
+    tier = computed_tier
+    if reliability == "POOR" and computed_tier == "LOW":
+        tier = "INSUFFICIENT_DATA"
+    # "May understate" is claimed only when missing inputs could actually raise the tier
+    # (bug HDEWS-011: previously claimed even when the worst case equalled the current tier).
+    lower_bound = tier != "INSUFFICIENT_DATA" and TIER_ORDER[max_possible_tier] > TIER_ORDER[tier]
 
     evidence_ids = sorted({i for f in factors for i in f.evidence_ids})
     origins = sorted({o for f in factors for o in f.origins})

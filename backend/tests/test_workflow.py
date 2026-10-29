@@ -1,5 +1,6 @@
 """End-to-end workflow: scenario → assessment → candidate alert → review → audit.
 Also stale-data behaviour, deduplication, the append-only audit log and explanations."""
+import sqlite3
 from datetime import timedelta
 
 import pytest
@@ -118,10 +119,10 @@ def test_stale_data_over_time_never_shows_low(client, auth, database):
 
 def test_audit_log_is_append_only(database):
     with database.tx() as tx:
-        with pytest.raises(Exception):
+        with pytest.raises(sqlite3.IntegrityError, match="append-only"):
             tx.execute("UPDATE audit_log SET actor_name = 'mallory'")
     with database.tx() as tx:
-        with pytest.raises(Exception):
+        with pytest.raises(sqlite3.IntegrityError, match="append-only"):
             tx.execute("DELETE FROM audit_log")
     with database.tx() as tx:
         assert audit.verify_chain(tx)["valid"]

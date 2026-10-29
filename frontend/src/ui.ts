@@ -22,7 +22,7 @@ export function assessmentCard(a: any, opts: { explain?: (id: string) => Promise
   if (!a) return h("div", { class: "card" }, h("p", { class: "muted" }, "No assessment yet."));
   const explainHost = h("div", { class: "explain" });
   const factorRows = a.factors.map((f: any) => h("tr", { class: f.points > 0 ? "contrib" : "" },
-    h("th", { scope: "row" }, f.label, f.critical ? h("span", { class: "crit", title: "Critical input: without it the tier cannot be confirmed" }, " critical") : null),
+    h("th", { scope: "row" }, f.label, f.critical ? h("span", { class: "crit", title: f.critical_reason || "Critical input: without it the tier cannot be confirmed" }, " critical") : null),
     h("td", { class: "num" }, f.value === null ? "—" : fmtNum(f.value, f.unit)),
     h("td", null, h("span", { class: `level level-${f.level}` }, LEVEL_LABEL[f.level] || f.level), f.points ? h("span", { class: "muted" }, ` +${f.points}`) : null),
     h("td", null, statePill(f.status)),
@@ -73,6 +73,9 @@ export function sensorCard(sn: any): HTMLElement {
       h("dt", null, "Observed"), h("dd", null, when(hl.last_observed_at)),
       h("dt", null, "Received"), h("dd", null, when(hl.last_received_at), hl.delayed ? h("span", { class: "warn-text" }, ` (${Math.round((hl.delay_s || 0) / 60)} min late)`) : null),
       h("dt", null, "Quality"), h("dd", null, hl.latest_quality || "—"),
-      h("dt", null, "Source"), h("dd", null, sn.source?.name || sn.source_id, " ", originTag(sn.source?.origin))),
+      // Provenance of the value shown, not of the sensor's registered feed (HDEWS-030): a real gateway
+      // reading for a sensor registered to the simulator must not be labelled "Simulated".
+      h("dt", null, "This reading"), h("dd", null, originTag(hl.latest_origin || "NONE")),
+      h("dt", null, "Registered feed"), h("dd", null, sn.source?.name || sn.source_id, " ", originTag(sn.source?.origin))),
     h("p", { class: "muted small" }, `${sn.id} · reports every ${Math.round(sn.expected_interval_s / 60)} min`));
 }

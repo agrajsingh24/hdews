@@ -14,7 +14,6 @@ from . import audit
 from .risk_engine import tier_at_least
 from .risk_engine.rules import HAZARD_LABELS
 
-OPEN_STATUSES = ("REVIEW_REQUIRED", "ACKNOWLEDGED", "ACTION_ASSIGNED")
 ACTION_TYPES_ASSIGNING = {"field_verification", "escalation", "test_notification"}
 ACTION_TYPES = ACTION_TYPES_ASSIGNING | {"note"}
 RESOLUTION_CATEGORIES = ("condition_cleared", "false_alarm", "confirmed_event", "data_issue", "exercise")
@@ -39,10 +38,17 @@ def process_assessment(tx: Tx, site: dict, result: dict, cfg: dict, actor: dict 
     rain_1h = result.get("observed_rain_1h_mm")
     adverse = (rain_1h is not None and rain_1h >= cfg["alerting"]["data_quality_alert_rain_1h_mm"]) or \
         tier_at_least(result["computed_tier_from_available_evidence"], "ELEVATED")
-    if result["reliability"] == "POOR" and adverse:
+    # HDEWS-036: if the site's own rain gauge is down, adverse weather cannot be ruled out. Requiring
+    # observed rain as proof meant a complete blackout (often caused by the storm) raised nothing.
+    # Sites with no rain gauge configured are excluded: that is a design limit, not an outage.
+    rain_factor = next((f for f in result.get("factors", []) if f["key"] == "rain_1h_mm"), None)
+    gauge_configured = any(h.get("sensor_type") == "rain_gauge" for h in result.get("sensor_health", []))
+    weather_unknown = gauge_configured and rain_factor is not None and rain_factor["status"] in ("missing", "stale")
+    if result["reliability"] == "POOR" and (adverse or weather_unknown):
         missing = ", ".join(m["label"].lower() for m in result["missing_inputs"] if m["critical"])
+        condition = "during adverse conditions" if adverse else "while adverse weather cannot be ruled out (rain gauge unavailable)"
         _upsert(tx, site, result, "DATA_QUALITY", "DATA_GAP",
-                f"Critical data gap during adverse conditions — {missing} ({HAZARD_LABELS[hazard].lower()}) at {site['name']}",
+                f"Critical data gap {condition} — {missing} ({HAZARD_LABELS[hazard].lower()}) at {site['name']}",
                 actor)
     return touched
 
@@ -86,7 +92,8 @@ def get(tx: Tx, alert_id: str) -> dict:
 
 
 def _action(tx: Tx, alert_id: str, actor: dict, action_type: str, notes: str, assignee: str | None = None) -> dict:
-    row = {"id": "ac_" + uuid.uuid4().hex[:12], "alert_id": alert_id, "actor_id": actor["id"],
+    seq = (tx.scalar("SELECT MAX(seq) FROM alert_actions WHERE alert_id = ?", (alert_id,)) or 0) + 1
+    row = {"id": "ac_" + uuid.uuid4().hex[:12], "alert_id": alert_id, "actor_id": actor["id"], "seq": seq,
            "action_type": action_type, "assignee": assignee, "notes": notes, "created_at": clock.now_iso()}
     tx.insert("alert_actions", row)
     return row

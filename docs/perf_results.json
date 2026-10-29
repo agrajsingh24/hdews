@@ -1,0 +1,91 @@
+{
+  "environment": {
+    "python": "3.13.18",
+    "platform": "Linux-6.18.44-fc-v180-x86_64-with-glibc2.39",
+    "cpu_count": 2,
+    "database": "SQLite (file, WAL)",
+    "client": "Starlette TestClient (in-process, no network)"
+  },
+  "dataset": {
+    "observations": 54644,
+    "history_rows_added": 50996,
+    "audit_events": 20016,
+    "assessments": 369,
+    "history_days": 30,
+    "build_seconds": 2.1
+  },
+  "results": {
+    "overview": {
+      "median_ms": 17.6,
+      "max_ms": 22.1,
+      "sql_statements": 37
+    },
+    "site_detail": {
+      "median_ms": 5.3,
+      "max_ms": 6.1,
+      "sql_statements": 12
+    },
+    "observations_24h": {
+      "median_ms": 4.7,
+      "max_ms": 5.9,
+      "sql_statements": 4
+    },
+    "observations_168h": {
+      "median_ms": 18.2,
+      "max_ms": 28.6,
+      "sql_statements": 4
+    },
+    "alerts_list": {
+      "median_ms": 3.0,
+      "max_ms": 3.2,
+      "sql_statements": 3
+    },
+    "assessments_list": {
+      "median_ms": 2.8,
+      "max_ms": 2.9,
+      "sql_statements": 3
+    },
+    "audit_page": {
+      "median_ms": 3.2,
+      "max_ms": 3.6,
+      "sql_statements": 3
+    },
+    "audit_verify": {
+      "median_ms": 190.8,
+      "max_ms": 236.5,
+      "sql_statements": 3
+    },
+    "map_layers": {
+      "median_ms": 3.0,
+      "max_ms": 3.8,
+      "sql_statements": 13
+    },
+    "sites_list": {
+      "median_ms": 11.2,
+      "max_ms": 14.4,
+      "sql_statements": 29
+    },
+    "assess_site": {
+      "median_ms": 7.0,
+      "max_ms": 9.7,
+      "sql_statements": 9
+    },
+    "simulator_apply": {
+      "median_ms": 40.3,
+      "max_ms": 86.3,
+      "sql_statements": 783
+    },
+    "overview_concurrent_8x40": {
+      "wall_s": 0.51,
+      "median_ms": 99.8,
+      "max_ms": 116.9
+    }
+  },
+  "query_plans": {
+    "tier_changes": "SEARCH audit_log USING INDEX idx_audit_event_type_seq (event_type=?)",
+    "assessments_unfiltered": "SCAN assessments USING INDEX idx_assess_time",
+    "site_window": "SEARCH observations USING INDEX idx_obs_site_time (site_id=? AND observed_at>?)",
+    "sensor_latest": "SEARCH observations USING INDEX idx_obs_sensor_time (sensor_id=?)"
+  },
+  "note": "Smoke measurements on one machine; not latency targets or a load test."
+}

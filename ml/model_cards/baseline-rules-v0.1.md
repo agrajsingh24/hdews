@@ -7,6 +7,7 @@
 | Code | `backend/app/services/risk_engine/` (`features.py`, `rules.py`, `engine.py`, `config.py`, `playbook.py`) |
 | Threshold status | **EXPERIMENTAL_DEMO_SETTINGS_NOT_CALIBRATED** |
 | Evaluation status | **Not evaluated.** No labelled, time-aligned event dataset is available for the pilot area. |
+| Verification | Threshold boundaries, safety invariants and 3,000 randomised cases tested — see docs/TEST_RESULTS.md. This is software verification, not validation of predictive skill. |
 | Playbook | `demo-playbook-v0.1` — illustrative review steps, **not** an authority-approved SOP |
 
 ## Intended use
@@ -30,10 +31,31 @@ Readings flagged `bad` or `missing` are excluded. A sensor is *stale* after 3 re
 Each indicator awards watch/high points (landslide: rain 24 h 1/2 ★, rain 1 h 1/2, soil excess 1/2 ★, displacement 2/4; flash flood: river stage 2/4 ★, 1 h rise 1/2, rain 1 h 1/2 ★, rain 3 h 1/2; ★ = critical). Score ≥ 4 → HIGH, ≥ 2 → ELEVATED, else LOW.
 
 ## Reliability and missing data
-* POOR if any critical input is missing or stale; DEGRADED if any input is incomplete, delayed, suspect, or a non-critical input is missing.
+* **Effective criticality (since the 2026-10-28 audit, HDEWS-009):** a missing or stale input counts as critical if it is a
+  documented critical input (★), *or* if its sensor is configured at the site and the unavailable data could change the tier.
+  This enforces "a sensor outage must not lower apparent risk". Inputs with no sensor configured at a site are not outages
+  and keep the documented DEGRADED treatment.
+* POOR if any (effectively) critical input is missing or stale; DEGRADED if any input is incomplete, delayed, suspect,
+  conflicting between sources, or not configured.
 * POOR + available evidence LOW → `INSUFFICIENT_DATA` (never LOW).
-* POOR + available evidence ≥ ELEVATED → tier kept, `tier_is_lower_bound = true`.
+* POOR + available evidence ≥ ELEVATED → tier kept.
 * `max_possible_tier`: the tier reached if every missing/stale/incomplete indicator were at its high level.
+  `tier_is_lower_bound` ("may understate") is true only when `max_possible_tier` is higher than the tier (HDEWS-011).
+* Duplicate readings at one timestamp count once, preferring OBSERVED > IMPORTED > DERIVED > SIMULATED (HDEWS-003);
+  non-finite values are unusable (HDEWS-010); freshness is judged from the newest *usable* reading (HDEWS-008).
+* **One origin per sensor (HDEWS-033):** if a sensor has readings of several origins (e.g. a real gateway and the simulator),
+  only the highest-precedence origin is used for every calculation of that sensor. Readings of different origins are
+  never summed (rain) or differenced (24 h displacement, 1 h river rise); doing so produced meaningless values such as a
+  19 mm "displacement" between a real extensometer and simulated data. The ignored readings are disclosed and
+  reliability is at most DEGRADED.
+
+## Alerting criteria
+* Candidate **hazard** alert: tier HIGH.
+* Candidate **data-gap** alert (never presented as a hazard alert): reliability POOR **and** either adverse conditions
+  (observed 1 h rain ≥ the site setting, or available evidence ≥ ELEVATED) **or** the site's configured rain gauge is
+  itself missing/stale, so adverse weather cannot be ruled out (HDEWS-036: previously a total blackout raised nothing).
+* One open alert per site, hazard and kind; repeated confirmations are linked to it, not duplicated.
+* None of these changes alter any threshold or point value.
 
 ## Outputs
 Tier, reliability, ordinal score (with "not a probability" note), per-factor value/threshold/level/status/as-of/evidence ids, missing inputs, reliability notes, changes vs previous assessment, review steps, rule version, data origin (SIMULATED / OBSERVED / MIXED).

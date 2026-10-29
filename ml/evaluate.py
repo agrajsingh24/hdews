@@ -47,17 +47,48 @@ class DatasetError(ValueError):
 
 
 def load(path: str | Path, features: list[str]) -> pd.DataFrame:
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except FileNotFoundError:
+        raise DatasetError(f"dataset file not found: {path}")
+    except pd.errors.EmptyDataError:
+        raise DatasetError("dataset file is empty")
+    except (pd.errors.ParserError, UnicodeDecodeError) as exc:
+        raise DatasetError(f"dataset is not a readable CSV: {exc}")
+    if df.empty:
+        raise DatasetError("dataset has no rows")
     missing = [c for c in REQUIRED + features if c not in df.columns]
     if missing:
         raise DatasetError(f"missing columns: {missing}")
+    if df["label_source"].isna().any():
+        raise DatasetError("every row needs a label_source")
     if df["label_source"].astype(str).str.lower().str.contains("synthetic").any():
         raise DatasetError("dataset contains synthetic labels; evaluation on synthetic data would be misleading")
-    df["window_end"] = pd.to_datetime(df["window_end"], utc=True)
+    try:
+        df["window_end"] = pd.to_datetime(df["window_end"], utc=True)
+    except (ValueError, TypeError) as exc:
+        raise DatasetError(f"window_end must be ISO-8601 timestamps: {exc}")
     if "event_onset" in df.columns:
         df["event_onset"] = pd.to_datetime(df["event_onset"], utc=True, errors="coerce")
-    if not set(df["label"].unique()) <= {0, 1}:
-        raise DatasetError("label must be 0 or 1")
+    if df["label"].isna().any() or not set(df["label"].unique()) <= {0, 1}:
+        raise DatasetError("label must be 0 or 1 on every row")
+    df["label"] = df["label"].astype(int)
+    for f in features:
+        if not pd.api.types.is_numeric_dtype(df[f]):
+            raise DatasetError(f"feature '{f}' must be numeric (blank cells are allowed for missing values)")
+        if np.isinf(df[f].to_numpy(dtype=float)).any():
+            raise DatasetError(f"feature '{f}' contains infinite values")
+    if "event_id" in df.columns:
+        if df.loc[df["label"] == 1, "event_id"].isna().any():
+            raise DatasetError("every positive row needs an event_id when the event_id column is present")
+    if "event_onset" in df.columns:
+        # Leakage guard: a positive window must end before (or at) the event onset; otherwise its
+        # features include measurements recorded during or after the event.
+        pos = df[(df["label"] == 1) & df["event_onset"].notna()]
+        late = pos[pos["window_end"] > pos["event_onset"]]
+        if len(late):
+            raise DatasetError(f"{len(late)} positive row(s) end after their event onset (leakage); "
+                               "build features only from data observed before the event")
     return df.sort_values("window_end").reset_index(drop=True)
 
 

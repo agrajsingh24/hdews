@@ -59,5 +59,8 @@ export async function api(path, opts = {}) {
         }
         throw new ApiError(res.status, e.code || "error", msg, e.details);
     }
+    // Let the shell refresh derived UI (e.g. the "awaiting review" badge) after any change (HDEWS-029).
+    if ((opts.method || "GET") !== "GET")
+        window.dispatchEvent(new CustomEvent("hdews:mutated", { detail: { path } }));
     return data;
 }

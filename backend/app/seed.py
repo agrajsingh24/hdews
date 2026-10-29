@@ -77,7 +77,37 @@ INITIAL_SCENARIOS = {
 }
 
 
-def seed(db: Database, quiet: bool = False) -> dict:
+KNOWN_DEFAULT_PASSWORDS = ("hdews-demo", "change-me-demo-password")
+KNOWN_PLACEHOLDER_INGEST_KEYS = ("change-me-ingest-key",)
+
+
+class SeedRefused(RuntimeError):
+    pass
+
+
+MIN_HOSTED_PASSWORD_LENGTH = 12
+
+
+def seed(db: Database, quiet: bool = False, environment: str | None = None) -> dict:
+    """Load the demo dataset. Refused in production: it creates demo accounts and simulated data (HDEWS-012).
+
+    In the hosted `demo` environment it requires a strong HDEWS_DEMO_PASSWORD (never a documented default)
+    and prints no secrets, because platform logs are not a safe place for them (HDEWS-040).
+    """
+    environment = (environment or os.environ.get("HDEWS_ENV", "development")).strip().lower()
+    if environment == "production":
+        raise SeedRefused("Refusing to load the demo dataset with HDEWS_ENV=production: it creates demo accounts "
+                          "with documented passwords and simulated telemetry.")
+    hosted = environment == "demo"
+    if hosted:
+        pw = os.environ.get("HDEWS_DEMO_PASSWORD", "")
+        if len(pw) < MIN_HOSTED_PASSWORD_LENGTH or pw in KNOWN_DEFAULT_PASSWORDS:
+            raise SeedRefused(f"HDEWS_ENV=demo needs HDEWS_DEMO_PASSWORD set to a non-default value of at least "
+                              f"{MIN_HOSTED_PASSWORD_LENGTH} characters (set it as a secret on the hosting platform).")
+        key = os.environ.get("FIELD_GATEWAY_INGEST_KEY", "")
+        if key and (len(key) < 16 or key in KNOWN_PLACEHOLDER_INGEST_KEYS):
+            raise SeedRefused("HDEWS_ENV=demo: FIELD_GATEWAY_INGEST_KEY is a placeholder or shorter than 16 characters. "
+                              "Set a random secret, or leave it unset to keep the gateway API disabled.")
     db.migrate()
     with db.tx() as tx:
         if tx.scalar("SELECT COUNT(*) FROM sites"):
@@ -85,15 +115,17 @@ def seed(db: Database, quiet: bool = False) -> dict:
     now = clock.now_iso()
     demo_password = os.environ.get("HDEWS_DEMO_PASSWORD") or "hdews-demo"
     ingest_key = os.environ.get("FIELD_GATEWAY_INGEST_KEY") or secrets.token_urlsafe(24)
-    sites_doc = json.loads((DATA / "sites.json").read_text())
-    incidents_doc = json.loads((DATA / "incidents.json").read_text())
+    sites_doc = json.loads((DATA / "sites.json").read_text(encoding="utf-8"))
+    incidents_doc = json.loads((DATA / "incidents.json").read_text(encoding="utf-8"))
     with db.tx() as tx:
         for uid, username, display, role in DEMO_USERS:
             tx.insert("users", {"id": uid, "username": username, "display_name": display, "role": role,
                                 "password_hash": hash_password(demo_password), "status": "active", "created_at": now})
         for src in DATA_SOURCES:
             row = dict(src, enabled=1, last_success_at=now if src["health_status"] == "HEALTHY" else None,
-                       ingest_key_hash=hash_token(ingest_key) if src["access_mode"] == "push_api" else None)
+                       ingest_key_hash=hash_token(ingest_key) if src["access_mode"] == "push_api" else None,
+                       # Demo gateway may write to every pilot site; narrow this for a real deployment.
+                       ingest_site_scope=[x["id"] for x in sites_doc["sites"]] if src["access_mode"] == "push_api" else None)
             tx.insert("data_sources", row)
         for s in sites_doc["sites"]:
             tx.insert("sites", {
@@ -126,7 +158,13 @@ def seed(db: Database, quiet: bool = False) -> dict:
             "ingest_key_from_env": bool(os.environ.get("FIELD_GATEWAY_INGEST_KEY"))}
     if not quiet:
         print("HDEWS demo data seeded.")
-        print(f"  Demo accounts: admin / analyst / reviewer / viewer — password: {demo_password}")
-        if not info["ingest_key_from_env"]:
-            print(f"  FIELD-GATEWAY-01 ingestion key (shown once): {ingest_key}")
+        if hosted:
+            print("  Demo accounts: admin / analyst / reviewer / viewer — password: the HDEWS_DEMO_PASSWORD secret.")
+            if not info["ingest_key_from_env"]:
+                print("  FIELD-GATEWAY-01: no FIELD_GATEWAY_INGEST_KEY set, so a random key was stored and not shown; "
+                      "the gateway API is effectively disabled until you set the secret and reset the key.")
+        else:
+            print(f"  Demo accounts: admin / analyst / reviewer / viewer — password: {demo_password}")
+            if not info["ingest_key_from_env"]:
+                print(f"  FIELD-GATEWAY-01 ingestion key (shown once): {ingest_key}")
     return info

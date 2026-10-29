@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .. import clock
 from ..db import Tx
@@ -31,6 +31,8 @@ SENSOR_TYPES = ("rain_gauge", "soil_moisture", "extensometer", "river_stage")
 
 class ScenarioParams(BaseModel):
     """Inputs for one site. Values are synthetic demonstration inputs."""
+    # A misspelt parameter must fail loudly rather than be ignored (HDEWS-005).
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     rain_mm_h: float = Field(0.0, ge=0, le=150, description="Current rainfall intensity (mm/h)")
     rain_hours: float = Field(0.0, ge=0, le=24, description="How long the current rainfall has lasted (h)")
     background_rain_mm_h: float = Field(0.2, ge=0, le=50, description="Rainfall rate earlier in the last 24 h (mm/h)")
@@ -234,6 +236,11 @@ def tick(tx: Tx) -> int:
             if sensor["sensor_type"] in params.delayed_sensors:
                 # Delayed readings that have now "arrived" but were not written earlier.
                 rows = [r for r in rows if r["observed_at"] > (last or "")]
+            # These readings reach HDEWS now. After downtime they may have been observed hours ago (a
+            # buffering gateway); received_at must record the true receipt time, never a past one (HDEWS-035).
+            for r in rows:
+                if r["received_at"] < clock.iso(ref):
+                    r["received_at"] = clock.iso(ref)
             _bulk_insert(tx, rows)
             written += len(rows)
     return written

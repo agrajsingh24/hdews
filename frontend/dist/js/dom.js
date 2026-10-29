@@ -152,6 +152,9 @@ export function confirmDialog(opts) {
                 btn.removeAttribute("disabled");
             }
         } }, h("h2", null, opts.title), h("div", { class: "dialog-body" }, opts.body), opts.form || null, err, h("div", { class: "dialog-actions" }, h("button", { class: "btn", type: "button", onclick: () => { dlg.close(); dlg.remove(); } }, "Cancel"), btn)));
+    // Escape closes a native <dialog> without our handlers running; remove it on any close so stale
+    // dialogs (and their duplicate form fields) never accumulate in the page (HDEWS-028).
+    dlg.addEventListener("close", () => dlg.remove());
     document.body.appendChild(dlg);
     dlg.showModal();
     const first = dlg.querySelector("textarea, input, select");
@@ -160,4 +163,16 @@ export function confirmDialog(opts) {
 export function render(root, ...children) {
     clear(root);
     append(root, children);
+}
+// Only http(s) links from data are rendered as links; anything else (e.g. javascript:) is not (HDEWS-022).
+export function safeUrl(url) {
+    if (!url)
+        return null;
+    try {
+        const u = new URL(url, location.href);
+        return u.protocol === "https:" || u.protocol === "http:" ? u.href : null;
+    }
+    catch {
+        return null;
+    }
 }

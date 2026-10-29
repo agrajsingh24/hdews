@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import threading
 import time
 from functools import wraps
@@ -19,15 +20,38 @@ class ApiError(Exception):
         self.status, self.code, self.message, self.details = status, code, message, details
 
 
+MAX_BODY_BYTES = 1_000_000  # largest legitimate request (500 ingestion readings) is ~70 kB
+
+
+def _finite(value: Any) -> Any:
+    """Replace NaN/Infinity (not valid JSON) with null so one bad stored value cannot crash a view (HDEWS-001)."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: _finite(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_finite(v) for v in value]
+    return value
+
+
+class SafeJSONResponse(JSONResponse):
+    def render(self, content: Any) -> bytes:
+        return json.dumps(_finite(content), ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
+
+
 def ok(data: Any, status: int = 200) -> JSONResponse:
-    return JSONResponse(data, status_code=status)
+    return SafeJSONResponse(data, status_code=status)
 
 
 def error_response(err: ApiError) -> JSONResponse:
     body = {"error": {"code": err.code, "message": err.message}}
     if err.details is not None:
         body["error"]["details"] = err.details
-    return JSONResponse(body, status_code=err.status)
+    return SafeJSONResponse(body, status_code=err.status)
+
+
+def _reject_constant(name: str) -> Any:
+    raise ValueError(f"{name} is not a valid number")
 
 
 def db(request: Request):
@@ -67,17 +91,40 @@ def require(permission: str) -> Callable[[Handler], Handler]:
     return decorator
 
 
+async def read_body(request: Request, limit: int = MAX_BODY_BYTES) -> bytes:
+    """Read the body without buffering more than `limit` bytes (HDEWS-004)."""
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > limit:
+        raise ApiError(413, "payload_too_large", f"Request body exceeds {limit} bytes.")
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > limit:
+            raise ApiError(413, "payload_too_large", f"Request body exceeds {limit} bytes.")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 async def body_as(request: Request, model: type[BaseModel]) -> Any:
+    raw = await read_body(request)
     try:
-        raw = await request.body()
-        data = json.loads(raw or b"{}")
-    except json.JSONDecodeError:
+        # NaN / Infinity are not JSON; Python's parser would otherwise accept them (HDEWS-001).
+        data = json.loads(raw or b"{}", parse_constant=_reject_constant)
+    except (json.JSONDecodeError, UnicodeDecodeError):
         raise ApiError(400, "invalid_json", "Request body must be valid JSON.")
+    except ValueError as exc:
+        raise ApiError(400, "invalid_json", f"Request body must be valid JSON: {exc}.")
+    if not isinstance(data, dict):
+        raise ApiError(422, "validation_error", "Request body must be a JSON object.")
     try:
         return model.model_validate(data)
     except ValidationError as exc:
-        details = [{"field": ".".join(str(p) for p in e["loc"]), "message": e["msg"]} for e in exc.errors()]
-        raise ApiError(422, "validation_error", "Request validation failed.", details)
+        raise ApiError(422, "validation_error", "Request validation failed.", validation_details(exc))
+
+
+def validation_details(exc: ValidationError) -> list[dict]:
+    # Only field paths and messages: never echo submitted values back (they may contain secrets).
+    return [{"field": ".".join(str(p) for p in e["loc"]), "message": e["msg"]} for e in exc.errors()]
 
 
 def paging(request: Request, default: int = 50, maximum: int = 200) -> tuple[int, int]:
@@ -116,4 +163,18 @@ class RateLimiter:
 
 
 def client_key(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    """Client identity for rate limiting (HDEWS-041).
+
+    Behind a platform proxy the TCP peer is the proxy, so all users would share one login bucket (one person
+    could lock everyone out, and the limit would be meaningless per client). CLIENT_IP_SOURCE selects the
+    X-Forwarded-For entry that the proxy guarantees; only enable it when the app is reachable solely
+    through that proxy, otherwise clients could spoof the header.
+    """
+    peer = request.client.host if request.client else "unknown"
+    source = settings(request).client_ip_source
+    if source == "peer":
+        return peer
+    hops = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+    if not hops:
+        return peer
+    return (hops[0] if source == "x-forwarded-for-first" else hops[-1])[:64]

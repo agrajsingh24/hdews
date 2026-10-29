@@ -50,10 +50,10 @@ async function drawOverview(root: HTMLElement): Promise<void> {
   const maxRain = Math.max(1, ...Object.values(o.rain_hourly.series as Record<string, number[]>).flat());
   const rain = h("section", { class: "panel" },
     h("h2", null, "Rainfall, last 24 hours"),
-    h("p", { class: "muted small" }, "Hourly totals from site rain gauges (mm per hour), shared scale. Bars at 15 mm/h or more are highlighted."),
+    h("p", { class: "muted small" }, "Hourly totals from site rain gauges (mm per hour), shared scale. Bars at 15 mm/h or more are highlighted. Each gauge shows one origin; observed readings take precedence over simulated ones."),
     h("div", { class: "rain-grid" }, Object.entries(o.rain_hourly.series as Record<string, number[]>).map(([id, vals]) =>
       h("div", { class: "rain-cell" }, h("div", { class: "rain-head" }, h("a", { href: `#/sites/${id}` }, siteName(id)),
-        h("span", { class: "num" }, fmtNum(vals.reduce((a, b) => a + b, 0), "mm"))),
+        h("span", { class: "num" }, fmtNum(vals.reduce((a, b) => a + b, 0), "mm"), " ", originTag(o.rain_hourly.origin?.[id] || "NONE"))),
         hourlyBars({ hours: o.rain_hourly.hours, values: vals, unit: "mm", label: siteName(id), max: Math.ceil(maxRain / 5) * 5 })))));
 
   const changes = h("section", { class: "panel" },

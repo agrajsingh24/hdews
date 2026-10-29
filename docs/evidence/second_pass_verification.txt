@@ -1,0 +1,30 @@
+# Second-pass independent reproduction (script: docs/evidence/second_pass_verify_claims.py)
+# Run 2026-10-28T17:01Z. Usage: python docs/evidence/second_pass_verify_claims.py <repo_root>
+
+## Baseline commit 5758680 (pristine worktree)
+HDEWS-001  ingest Infinity -> 202; GET /overview -> 500
+HDEWS-002  value with unit 'ft' for a metres sensor -> 202 accepted=1
+HDEWS-003  rain_1h before=17.3 after re-sending the same readings as OBSERVED=34.6
+HDEWS-009  displacement 7mm/24h: HIGH/GOOD -> extensometer offline 7h: LOW/DEGRADED
+HDEWS-008  good soil 5h old + 4h of bad readings: soil status=available as_of=2026-07-15T07:00:00Z sensor state=FRESH
+HDEWS-010  NaN soil readings -> soil level=normal status=available; tier LOW/GOOD
+HDEWS-006  misspelt key -> 200; boolean threshold -> 200; 1e999 -> 500
+HDEWS-018  after deleting newest of 22 audit events: verify -> {'valid': True, 'events_checked': 21, 'broken_at_seq': None}
+HDEWS-023  DELETE /api/alerts -> 404
+HDEWS-020  incident search q='%' -> total 9 (9 records, none contain '%')
+HDEWS-012  seed with HDEWS_ENV=production -> rc=0 out='HDEWS demo data seeded.'
+HDEWS-013  reset_db on a non-HDEWS sqlite file -> rc=0; table 'precious' survives: False
+
+## Working tree after both audit passes
+HDEWS-001  ingest Infinity -> 400; GET /overview -> 200
+HDEWS-002  value with unit 'ft' for a metres sensor -> 200 accepted=0
+HDEWS-003  rain_1h before=17.3 after re-sending the same readings as OBSERVED=17.3
+HDEWS-009  displacement 7mm/24h: HIGH/GOOD -> extensometer offline 7h: INSUFFICIENT_DATA/POOR
+HDEWS-008  good soil 5h old + 4h of bad readings: soil status=stale as_of=2026-07-15T07:00:00Z sensor state=FRESH
+HDEWS-010  NaN soil readings -> soil level=unknown status=missing; tier INSUFFICIENT_DATA/POOR
+HDEWS-006  misspelt key -> 422; boolean threshold -> 422; 1e999 -> 422
+HDEWS-018  after deleting newest of 17 audit events: verify -> {'valid': False, 'events_checked': 16, 'broken_at_seq': 17, 'reason': 'events after #16 are missing (high-water mark #17)', 'head_hash': None}
+HDEWS-023  DELETE /api/alerts -> 405
+HDEWS-020  incident search q='%' -> total 0 (9 records, none contain '%')
+HDEWS-012  seed with HDEWS_ENV=production -> rc=1 out='Not seeded: Refusing to load the demo dataset with HDEWS_ENV=production: it creates demo a'
+HDEWS-013  reset_db on a non-HDEWS sqlite file -> rc=2; table 'precious' survives: True

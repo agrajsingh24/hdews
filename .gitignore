@@ -1,9 +1,32 @@
+# Secrets: never commit. .env.example (placeholders only) is the template.
 .env
+.env.*
+!.env.example
+
+# Local databases (SQLite and its WAL/SHM files)
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
+
+# Python
 __pycache__/
+*.py[cod]
 .pytest_cache/
+.venv/
+venv/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Node (frontend/dist is committed on purpose: it is what the server serves)
 node_modules/
-backend/hdews.db
+
+# Archives, logs, editor/OS files
+*.zip
 *.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
